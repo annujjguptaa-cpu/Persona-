@@ -59,6 +59,14 @@ ARCHETYPES_JSON_SCHEMA: Dict[str, Any] = {
                             "language_barrier",
                         ],
                     },
+                    "sensitivity": {
+                        "type": "object",
+                        "properties": {
+                            "anxiety": {"type": "number"},
+                            "trust_in_health_system": {"type": "number"},
+                            "rumour_level": {"type": "number"},
+                        },
+                    },
                 },
                 "required": ["id", "label", "description", "share_of_population", "traits"],
             },

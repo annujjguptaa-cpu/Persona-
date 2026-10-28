@@ -106,12 +106,19 @@ def features_to_dict(features: MessageFeatures) -> Dict[str, float]:
         if isinstance(features.call_to_action, (int, float))
         else (1.0 if features.call_to_action else 0.0)
     )
+    auth_score = float(features.authority_score)
+    if getattr(features, "has_official_look", False) and auth_score < 0.6:
+        auth_score = max(auth_score, 0.75)
+
     return {
         "urgency": float(features.urgency),
         "emotional_pull": float(features.emotional_pull),
-        "authority_claim": float(features.authority_score),
+        "authority_claim": float(auth_score),
         "call_to_action": float(cta_score),
-        "has_link": 1.0 if features.has_link else 0.0,
+        "has_link": 1.0 if (features.has_link or getattr(features, "has_qr", False)) else 0.0,
+        "has_qr": 1.0 if getattr(features, "has_qr", False) else 0.0,
+        "has_official_look": 1.0 if getattr(features, "has_official_look", False) else 0.0,
+        "visual_appeal": float(getattr(features, "visual_appeal", 0.5)),
     }
 
 

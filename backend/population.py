@@ -13,6 +13,7 @@ import numpy as np
 
 from backend.domain_packs import TRAITS
 from backend.models import Archetype, Person
+from backend.mood import MoodState, compute_effective_trait, get_days_since_update, load_mood
 
 # --------------------------------------------------------------------------
 # Authentic Indian Name Pools categorized by language and cultural region
@@ -189,17 +190,42 @@ def _get_archetype_demographics(
     return age, area, lang
 
 
+def _get_archetype_sensitivity(arch: Archetype, trait_name: str) -> float:
+    """Extract per-archetype sensitivity to mood shifts from archetype specification."""
+    sens = getattr(arch, "sensitivity", None) or {}
+    if isinstance(sens, (int, float)):
+        return float(sens)
+    if isinstance(sens, dict):
+        if trait_name in sens:
+            return float(sens[trait_name])
+        if trait_name in ("emotional_reactivity", "time_pressure") and "anxiety" in sens:
+            return float(sens["anxiety"])
+        if trait_name == "trust_in_source" and "trust_in_health_system" in sens:
+            return float(sens["trust_in_health_system"])
+        if trait_name in ("social_sharing", "skepticism") and "rumour_level" in sens:
+            return float(sens["rumour_level"])
+        if "default" in sens:
+            return float(sens["default"])
+    return 1.0
+
+
 def generate_population(
     archetypes: List[Archetype],
     n: int = 120,
-    seed: int = 42
+    seed: int = 42,
+    mood: Optional[MoodState] = None,
 ) -> List[Person]:
     """Generate a synthetic population of Person objects with realistic demographics and jittered traits.
+
+    Applies macro mood shifts to archetype trait baselines:
+        effective_trait = base + shift * sensitivity * exp(-days/5)
+    followed by individual Gaussian jitter (sd=0.08). Contains aggregate data only.
 
     Args:
         archetypes: List of Archetype models defining the baseline population segments.
         n: Number of synthetic people to generate (default 120).
         seed: Deterministic random seed for reproducibility.
+        mood: Optional community MoodState override; loads from mood.json if omitted.
 
     Returns:
         List of generated Person objects.
@@ -208,6 +234,9 @@ def generate_population(
         raise ValueError("Cannot generate population from empty archetypes list")
     if n <= 0:
         return []
+
+    active_mood = mood if mood is not None else load_mood()
+    days = get_days_since_update(active_mood)
 
     np_rng = np.random.default_rng(seed)
     py_rng = random.Random(seed)
@@ -250,12 +279,21 @@ def generate_population(
         last_name = py_rng.choice(lang_pool["last"])
         full_name = f"{first_name} {last_name}"
 
-        # Trait means + Gaussian jitter (sd=0.08), strictly clipped to [0.0, 1.0]
+        # Trait means with mood shift: effective_trait = base + shift * sensitivity * exp(-days/5)
+        # followed by Gaussian individual jitter (sd=0.08), strictly clipped to [0.0, 1.0]
         person_traits: Dict[str, float] = {}
         for trait_name in TRAITS:
-            mean_trait = arch.traits.get(trait_name, 0.5)
+            base_trait = arch.traits.get(trait_name, 0.5)
+            sensitivity = _get_archetype_sensitivity(arch, trait_name)
+            effective_base = compute_effective_trait(
+                base=base_trait,
+                trait_name=trait_name,
+                sensitivity=sensitivity,
+                mood=active_mood,
+                days=days,
+            )
             jitter = float(np_rng.normal(loc=0.0, scale=0.08))
-            clamped_val = max(0.0, min(1.0, round(mean_trait + jitter, 4)))
+            clamped_val = max(0.0, min(1.0, round(effective_base + jitter, 4)))
             person_traits[trait_name] = clamped_val
 
         person = Person(

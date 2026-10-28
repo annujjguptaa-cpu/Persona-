@@ -3,7 +3,7 @@
 All probabilities are floats bounded in [0.0, 1.0] validated with Field(ge=0, le=1).
 """
 
-from typing import Any, Union
+from typing import Any, Optional, Union
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
@@ -35,6 +35,10 @@ class Archetype(PersonaBaseModel):
     traits: dict[str, float] = Field(
         default_factory=dict,
         description="Behavioral traits with intensity floats",
+    )
+    sensitivity: dict[str, float] = Field(
+        default_factory=dict,
+        description="Per-archetype mood sensitivities to macro psychographic shifts",
     )
 
 
@@ -115,6 +119,24 @@ class MessageFeatures(PersonaBaseModel):
     topics: list[str] = Field(
         default_factory=list,
         description="Core subject themes (e.g. 'banking', 'health', 'politics')",
+    )
+    has_qr: bool = Field(
+        default=False,
+        description="Whether message or embedded media contains a scannable QR code",
+    )
+    has_official_look: bool = Field(
+        default=False,
+        description="Whether image or styling displays official government or institutional aesthetics",
+    )
+    visual_appeal: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        description="Visual aesthetic and production quality score between 0.0 and 1.0",
+    )
+    image_note: Optional[str] = Field(
+        default=None,
+        description="Diagnostic note on media processing (e.g. 'image not analysed')",
     )
 
     @field_validator("authority_claim", mode="before")

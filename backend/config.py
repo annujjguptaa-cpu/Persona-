@@ -14,7 +14,11 @@ PRESETS_DIR = DATA_DIR / "presets"
 # Ollama / Local LLM Settings
 OLLAMA_URL: str = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434")
 MODEL: str = os.getenv("MODEL", "qwen2.5vl:7b")
+VISION_MODEL: str = os.getenv("VISION_MODEL", "qwen2.5vl:7b")
 USE_LLM: bool = os.getenv("USE_LLM", "true").lower() in ("true", "1", "yes")
+
+# Community Mood & Macro State File
+MOOD_FILE: Path = DATA_DIR / "mood.json"
 
 # Simulation Hyperparameters
 N_PEOPLE: int = int(os.getenv("N_PEOPLE", "120"))

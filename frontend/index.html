@@ -332,6 +332,212 @@
             display: block;
         }
 
+        /* Two Column Sidebar Grid Wrap */
+        .left-sidebar-col {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        /* Multimodal Image Drop Zone (Cream / Hairline) */
+        .label-optional {
+            font-size: 0.72rem;
+            color: var(--ink-faint);
+            text-transform: none;
+            letter-spacing: normal;
+            font-weight: 400;
+            margin-left: 0.35rem;
+        }
+
+        .image-drop-zone {
+            border: 1px dashed var(--hairline-dark);
+            background: var(--surface-warm);
+            border-radius: var(--radius-sm);
+            padding: 0.85rem 1rem;
+            cursor: pointer;
+            transition: background 0.15s ease, border-color 0.15s ease;
+            text-align: center;
+            position: relative;
+        }
+
+        .image-drop-zone:hover, .image-drop-zone.dragover {
+            background: var(--surface-dim);
+            border-color: var(--ink-muted);
+        }
+
+        .image-drop-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.4rem 0;
+        }
+
+        .image-drop-icon {
+            font-size: 1.35rem;
+            opacity: 0.65;
+        }
+
+        .image-drop-text {
+            font-size: 0.82rem;
+            color: var(--ink);
+        }
+
+        .drop-link {
+            text-decoration: underline;
+            font-weight: 600;
+        }
+
+        .image-drop-hint {
+            font-size: 0.7rem;
+            color: var(--ink-faint);
+        }
+
+        .image-drop-preview {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            text-align: left;
+        }
+
+        .image-thumbnail {
+            width: 56px;
+            height: 56px;
+            object-fit: cover;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--hairline);
+            background: var(--surface);
+            flex-shrink: 0;
+        }
+
+        .image-preview-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .image-filename {
+            font-size: 0.78rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--ink);
+        }
+
+        .image-filesize {
+            font-size: 0.7rem;
+            color: var(--ink-muted);
+        }
+
+        .image-status-line {
+            font-size: 0.72rem;
+            color: var(--node-blue);
+            margin-top: 0.2rem;
+            font-weight: 500;
+        }
+
+        .btn-remove-image {
+            background: transparent;
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+            width: 24px;
+            height: 24px;
+            font-size: 1.1rem;
+            line-height: 1;
+            color: var(--ink-muted);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .btn-remove-image:hover {
+            background: var(--surface-dim);
+            color: var(--ink);
+            border-color: var(--hairline-dark);
+        }
+
+        .image-fallback-note {
+            margin-top: 0.4rem;
+            padding: 0.35rem 0.6rem;
+            background: #fff8db;
+            border: 1px solid #fcc419;
+            border-radius: var(--radius-sm);
+            font-size: 0.72rem;
+            color: #d9480f;
+            display: none;
+        }
+
+        /* Community Mood Panel (Cream / Hairline) */
+        .mood-card {
+            padding: 1.25rem 1.5rem;
+        }
+
+        .mood-card h3 {
+            font-size: 1.1rem;
+        }
+
+        .mood-subtitle {
+            font-size: 0.76rem;
+            color: var(--ink-muted);
+            margin-top: 0.2rem;
+            margin-bottom: 0.85rem;
+            line-height: 1.35;
+        }
+
+        .mood-slider-group {
+            margin-bottom: 0.75rem;
+        }
+
+        .mood-slider-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 0.2rem;
+        }
+
+        .mood-slider-header label {
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            color: var(--ink-muted);
+            margin-bottom: 0;
+        }
+
+        .mood-slider-group input[type="range"] {
+            width: 100%;
+            accent-color: var(--ink);
+            cursor: pointer;
+        }
+
+        .mood-val {
+            font-size: 0.76rem;
+            color: var(--node-blue);
+            font-weight: 600;
+        }
+
+        .mood-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 0.85rem;
+            padding-top: 0.6rem;
+            border-top: 1px solid var(--hairline);
+        }
+
+        .mood-updated-label {
+            font-size: 0.7rem;
+            color: var(--ink-faint);
+        }
+
+        .mood-save-status {
+            font-size: 0.7rem;
+            color: var(--node-green);
+            font-weight: 500;
+        }
+
         /* Primary Action Button */
         .btn-primary {
             width: 100%;
@@ -1410,78 +1616,143 @@
     <div id="view-sim-wrap">
         <div class="layout-grid">
             
-            <!-- Left Input Card -->
-            <aside class="editorial-card">
-                <div class="card-header-line">
-                    <h2>Input Message</h2>
-                    <span class="mono" id="current-pack-label">Scam & Fraud</span>
-                </div>
-
-                <div class="form-group">
-                    <label for="message-input">Message Content</label>
-                    <textarea 
-                        id="message-input" 
-                        maxlength="500" 
-                        placeholder="Type or paste a candidate message here (max 500 characters)..."
-                    >URGENT: Your electricity connection will be disconnected tonight at 9:30 PM due to an unpaid bill. Call 9876543210 immediately or pay via link: http://bit.ly/quick-bill-pay to prevent power cut.</textarea>
-                    <div class="char-counter" id="char-counter">0 / 500</div>
-                </div>
-
-                <!-- Sample Chips -->
-                <div class="sample-chips-wrap">
-                    <div class="sample-chips-label">Try a sample message:</div>
-                    <div class="chips-container" id="sample-chips-container">
-                        <!-- Populated dynamically from pack samples -->
+            <!-- Left Column: Input Card + Community Mood Panel -->
+            <div class="left-sidebar-col">
+                <aside class="editorial-card">
+                    <div class="card-header-line">
+                        <h2>Input Message</h2>
+                        <span class="mono" id="current-pack-label">Scam & Fraud</span>
                     </div>
-                </div>
 
-                <div class="form-group">
-                    <label for="pack-select">Domain Pack</label>
-                    <select id="pack-select" onchange="onPackChange()">
-                        <option value="scam_fraud">Scam & Fraud</option>
-                        <option value="health_campaign">Health Campaign</option>
-                        <option value="product_marketing">Product & Marketing</option>
-                        <option value="civic_policy">Civic & Policy</option>
-                        <option value="misinformation">Misinformation</option>
-                    </select>
-                </div>
+                    <!-- Multimodal Image Upload Box -->
+                    <div class="form-group">
+                        <label>Image Upload <span class="label-optional mono">(Optional • PNG, JPG, WEBP, Max 8MB)</span></label>
+                        <div class="image-drop-zone" id="image-drop-zone" onclick="triggerFileInput()">
+                            <input type="file" id="image-file-input" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp" style="display: none;" onchange="handleFileSelect(event)">
+                            <div id="image-drop-empty" class="image-drop-empty">
+                                <span class="image-drop-icon">🖼</span>
+                                <div class="image-drop-text">Drag & drop an image here, or <span class="drop-link">browse</span></div>
+                                <div class="image-drop-hint mono">PNG, JPG, WEBP • Max 8 MB</div>
+                            </div>
+                            <div id="image-drop-preview" class="image-drop-preview" style="display: none;">
+                                <img id="image-thumbnail" class="image-thumbnail" alt="Uploaded thumbnail">
+                                <div class="image-preview-info">
+                                    <div id="image-filename" class="image-filename mono">image.png</div>
+                                    <div id="image-filesize" class="image-filesize mono">0 KB</div>
+                                    <div id="image-status-line" class="image-status-line mono">Ready to analyze</div>
+                                </div>
+                                <button type="button" class="btn-remove-image" onclick="clearImageUpload(event)" title="Remove image">×</button>
+                            </div>
+                        </div>
+                        <div id="image-fallback-note" class="image-fallback-note mono">
+                            ⚠ image not analysed — fell back to text
+                        </div>
+                    </div>
 
-                <div class="form-group">
-                    <label for="preset-select">Audience Preset</label>
-                    <select id="preset-select" onchange="onPresetChange()">
-                        <!-- Populated dynamically -->
-                    </select>
+                    <div class="form-group">
+                        <label for="message-input">Message Content <span class="label-optional mono">(Optional if image attached)</span></label>
+                        <textarea 
+                            id="message-input" 
+                            maxlength="500" 
+                            placeholder="Type or paste a candidate message here (max 500 characters, 600 with image)..."
+                        >URGENT: Your electricity connection will be disconnected tonight at 9:30 PM due to an unpaid bill. Call 9876543210 immediately or pay via link: http://bit.ly/quick-bill-pay to prevent power cut.</textarea>
+                        <div class="char-counter" id="char-counter">0 / 500</div>
+                    </div>
+
+                    <!-- Sample Chips -->
+                    <div class="sample-chips-wrap">
+                        <div class="sample-chips-label">Try a sample message:</div>
+                        <div class="chips-container" id="sample-chips-container">
+                            <!-- Populated dynamically from pack samples -->
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="pack-select">Domain Pack</label>
+                        <select id="pack-select" onchange="onPackChange()">
+                            <option value="scam_fraud">Scam & Fraud</option>
+                            <option value="health_campaign">Health Campaign</option>
+                            <option value="product_marketing">Product & Marketing</option>
+                            <option value="civic_policy">Civic & Policy</option>
+                            <option value="misinformation">Misinformation</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="preset-select">Audience Preset</label>
+                        <select id="preset-select" onchange="onPresetChange()">
+                            <!-- Populated dynamically -->
+                        </select>
+                        
+                        <div class="custom-audience-box" id="custom-audience-box">
+                            <label for="custom-audience-input" style="margin-top: 0.5rem;">Custom Audience Description</label>
+                            <input type="text" id="custom-audience-input" placeholder="e.g. Rural farmers and small agri-traders in Punjab">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="channel-select">Distribution Channel</label>
+                        <select id="channel-select">
+                            <option value="whatsapp">WhatsApp (Small-world group clusters)</option>
+                            <option value="sms">SMS (Direct 1-to-1 broadcast)</option>
+                            <option value="social_feed">Social Feed (Hub broadcast)</option>
+                            <option value="call">Phone Call (Zero forwarding)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="intervention-input">Defensive Intervention (Optional)</label>
+                        <input 
+                            type="text" 
+                            id="intervention-input" 
+                            maxlength="500" 
+                            placeholder="e.g. Official advisory: Discom never disconnects without 15-day notice."
+                        >
+                    </div>
+
+                    <button class="btn-primary" id="btn-run-sim" onclick="startSimulation()">
+                        <span id="btn-run-sim-text">Run Simulation</span>
+                    </button>
+                </aside>
+
+                <!-- Small Community Mood Slider Panel -->
+                <div class="editorial-card mood-card" id="mood-panel">
+                    <div class="card-header-line">
+                        <h3>Community Mood</h3>
+                        <span class="mono" style="color: var(--node-blue);">Macro Climate</span>
+                    </div>
+                    <p class="mood-subtitle">Aggregate macro climate indices (0.00 – 1.00). Decays exponentially over 5 days. Aggregates only; zero per-person tracking.</p>
                     
-                    <div class="custom-audience-box" id="custom-audience-box">
-                        <label for="custom-audience-input" style="margin-top: 0.5rem;">Custom Audience Description</label>
-                        <input type="text" id="custom-audience-input" placeholder="e.g. Rural farmers and small agri-traders in Punjab">
+                    <div class="mood-slider-group">
+                        <div class="mood-slider-header">
+                            <label for="slider-mood-anxiety">Anxiety Index</label>
+                            <span class="mono mood-val" id="val-mood-anxiety">0.50</span>
+                        </div>
+                        <input type="range" id="slider-mood-anxiety" min="0" max="1" step="0.01" value="0.50" oninput="onMoodSliderChange()">
+                    </div>
+
+                    <div class="mood-slider-group">
+                        <div class="mood-slider-header">
+                            <label for="slider-mood-trust">Trust in Health System</label>
+                            <span class="mono mood-val" id="val-mood-trust">0.50</span>
+                        </div>
+                        <input type="range" id="slider-mood-trust" min="0" max="1" step="0.01" value="0.50" oninput="onMoodSliderChange()">
+                    </div>
+
+                    <div class="mood-slider-group">
+                        <div class="mood-slider-header">
+                            <label for="slider-mood-rumour">Rumour Saturation</label>
+                            <span class="mono mood-val" id="val-mood-rumour">0.50</span>
+                        </div>
+                        <input type="range" id="slider-mood-rumour" min="0" max="1" step="0.01" value="0.50" oninput="onMoodSliderChange()">
+                    </div>
+
+                    <div class="mood-footer">
+                        <span class="mono mood-updated-label" id="mood-updated-label">Last updated: Never</span>
+                        <span class="mono mood-save-status" id="mood-save-status"></span>
                     </div>
                 </div>
-
-                <div class="form-group">
-                    <label for="channel-select">Distribution Channel</label>
-                    <select id="channel-select">
-                        <option value="whatsapp">WhatsApp (Small-world group clusters)</option>
-                        <option value="sms">SMS (Direct 1-to-1 broadcast)</option>
-                        <option value="social_feed">Social Feed (Hub broadcast)</option>
-                        <option value="call">Phone Call (Zero forwarding)</option>
-                    </select>
-                </div>
-
-                <div class="form-group">
-                    <label for="intervention-input">Defensive Intervention (Optional)</label>
-                    <input 
-                        type="text" 
-                        id="intervention-input" 
-                        maxlength="500" 
-                        placeholder="e.g. Official advisory: Discom never disconnects without 15-day notice."
-                    >
-                </div>
-
-                <button class="btn-primary" id="btn-run-sim" onclick="startSimulation()">
-                    <span id="btn-run-sim-text">Run Simulation</span>
-                </button>
-            </aside>
+            </div>
 
             <!-- Right Graph Canvas Panel -->
             <section class="graph-panel">
@@ -1815,14 +2086,26 @@ let isPlaying = false;
 let playInterval = null;
 let animationSpeedMs = 1200;
 
+// Multimodal & Community Mood State Variables
+let selectedImageFile = null;
+let currentMood = {
+    anxiety: 0.50,
+    trust_in_health_system: 0.50,
+    rumour_level: 0.50,
+    updated_at: null
+};
+let moodDebounceTimer = null;
+
 // Initialize on DOM Ready
 document.addEventListener("DOMContentLoaded", async () => {
     initCharCounter();
     renderRecentRunsStrip();
+    setupImageDragAndDrop();
     await loadPrecomputedBundle();
     await checkHealth();
     await loadPacks();
     await loadPresets();
+    await loadMood();
     initD3Canvas();
     setRuntimeMode("demo"); // Default to instant offline demo mode
 });
@@ -1911,16 +2194,209 @@ async function loadPrecomputedBundle() {
     }
 }
 
-// Character Counter
-function initCharCounter() {
+// Character Counter with Dynamic Limit (500 base, 600 multimodal)
+function updateCharCounter() {
     const input = document.getElementById("message-input");
     const counter = document.getElementById("char-counter");
-    input.addEventListener("input", () => {
-        const len = input.value.length;
-        counter.textContent = `${len} / 500`;
-        counter.classList.toggle("limit-near", len > 460);
+    if (!input || !counter) return;
+    const maxChars = selectedImageFile ? 600 : 500;
+    input.maxLength = maxChars;
+    const len = input.value.length;
+    counter.textContent = `${len} / ${maxChars}`;
+    counter.classList.toggle("limit-near", len > maxChars - 40);
+}
+
+function initCharCounter() {
+    const input = document.getElementById("message-input");
+    if (input) {
+        input.addEventListener("input", updateCharCounter);
+    }
+    updateCharCounter();
+}
+
+// --------------------------------------------------------------------------
+// Community Mood State (Macro Climate, GET/POST /mood)
+// --------------------------------------------------------------------------
+
+async function loadMood() {
+    try {
+        const resp = await fetch(`${API_BASE}/mood`);
+        if (resp.ok) {
+            const data = await resp.json();
+            currentMood = data;
+            const sAnxiety = document.getElementById("slider-mood-anxiety");
+            const sTrust = document.getElementById("slider-mood-trust");
+            const sRumour = document.getElementById("slider-mood-rumour");
+
+            if (sAnxiety) sAnxiety.value = data.anxiety;
+            if (sTrust) sTrust.value = data.trust_in_health_system;
+            if (sRumour) sRumour.value = data.rumour_level;
+
+            document.getElementById("val-mood-anxiety").textContent = Number(data.anxiety).toFixed(2);
+            document.getElementById("val-mood-trust").textContent = Number(data.trust_in_health_system).toFixed(2);
+            document.getElementById("val-mood-rumour").textContent = Number(data.rumour_level).toFixed(2);
+
+            updateMoodUpdatedLabel(data.updated_at);
+        }
+    } catch (e) {
+        console.warn("Could not load community mood state:", e);
+    }
+}
+
+function updateMoodUpdatedLabel(isoString) {
+    const lbl = document.getElementById("mood-updated-label");
+    if (!lbl) return;
+    if (!isoString) {
+        lbl.textContent = "Last updated: Never";
+        return;
+    }
+    try {
+        const date = new Date(isoString);
+        lbl.textContent = `Last updated: ${date.toLocaleDateString([], {month: 'short', day: 'numeric'})} ${date.toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`;
+    } catch (e) {
+        lbl.textContent = `Last updated: ${isoString.slice(0, 16)}`;
+    }
+}
+
+function onMoodSliderChange() {
+    const anxiety = parseFloat(document.getElementById("slider-mood-anxiety").value);
+    const trust = parseFloat(document.getElementById("slider-mood-trust").value);
+    const rumour = parseFloat(document.getElementById("slider-mood-rumour").value);
+
+    document.getElementById("val-mood-anxiety").textContent = anxiety.toFixed(2);
+    document.getElementById("val-mood-trust").textContent = trust.toFixed(2);
+    document.getElementById("val-mood-rumour").textContent = rumour.toFixed(2);
+
+    currentMood.anxiety = anxiety;
+    currentMood.trust_in_health_system = trust;
+    currentMood.rumour_level = rumour;
+
+    const statusLbl = document.getElementById("mood-save-status");
+    if (statusLbl) statusLbl.textContent = "Saving...";
+
+    clearTimeout(moodDebounceTimer);
+    moodDebounceTimer = setTimeout(async () => {
+        try {
+            const res = await fetch(`${API_BASE}/mood`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    anxiety: anxiety,
+                    trust_in_health_system: trust,
+                    rumour_level: rumour
+                })
+            });
+            if (res.ok) {
+                const updated = await res.json();
+                currentMood = updated;
+                updateMoodUpdatedLabel(updated.updated_at);
+                if (statusLbl) {
+                    statusLbl.textContent = "Saved";
+                    setTimeout(() => { if (statusLbl) statusLbl.textContent = ""; }, 2000);
+                }
+            }
+        } catch (e) {
+            console.error("Failed to save mood state:", e);
+            if (statusLbl) statusLbl.textContent = "Error saving";
+        }
+    }, 400);
+}
+
+// --------------------------------------------------------------------------
+// Multimodal Image Ingestion & Drag-and-Drop Handling
+// --------------------------------------------------------------------------
+
+function triggerFileInput() {
+    const input = document.getElementById("image-file-input");
+    if (input) input.click();
+}
+
+function handleFileSelect(event) {
+    const file = event.target.files && event.target.files[0];
+    if (file) processSelectedImage(file);
+}
+
+function processSelectedImage(file) {
+    const validExts = [".png", ".jpg", ".jpeg", ".webp"];
+    const ext = "." + file.name.split(".").pop().toLowerCase();
+    if (!validExts.includes(ext)) {
+        alert("Unsupported file format. Please upload a PNG, JPG, or WEBP image.");
+        return;
+    }
+
+    if (file.size > 8 * 1024 * 1024) {
+        alert(`File size (${(file.size / (1024 * 1024)).toFixed(1)} MB) exceeds maximum allowed limit of 8 MB.`);
+        return;
+    }
+
+    selectedImageFile = file;
+    updateCharCounter();
+
+    const emptyZone = document.getElementById("image-drop-empty");
+    const previewZone = document.getElementById("image-drop-preview");
+    const thumb = document.getElementById("image-thumbnail");
+    const nameLbl = document.getElementById("image-filename");
+    const sizeLbl = document.getElementById("image-filesize");
+    const statusLbl = document.getElementById("image-status-line");
+    const fallbackNote = document.getElementById("image-fallback-note");
+
+    if (fallbackNote) fallbackNote.style.display = "none";
+    if (emptyZone) emptyZone.style.display = "none";
+    if (previewZone) previewZone.style.display = "flex";
+    if (nameLbl) nameLbl.textContent = file.name;
+    if (sizeLbl) sizeLbl.textContent = `${(file.size / 1024).toFixed(1)} KB`;
+    if (statusLbl) statusLbl.textContent = "Reading image...";
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        if (thumb) thumb.src = e.target.result;
+        if (statusLbl) statusLbl.textContent = "Ready to analyze";
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearImageUpload(event) {
+    if (event) event.stopPropagation();
+    selectedImageFile = null;
+    const input = document.getElementById("image-file-input");
+    if (input) input.value = "";
+
+    const emptyZone = document.getElementById("image-drop-empty");
+    const previewZone = document.getElementById("image-drop-preview");
+    const fallbackNote = document.getElementById("image-fallback-note");
+
+    if (previewZone) previewZone.style.display = "none";
+    if (emptyZone) emptyZone.style.display = "flex";
+    if (fallbackNote) fallbackNote.style.display = "none";
+
+    updateCharCounter();
+}
+
+function setupImageDragAndDrop() {
+    const dropZone = document.getElementById("image-drop-zone");
+    if (!dropZone) return;
+
+    ["dragenter", "dragover"].forEach(evtName => {
+        dropZone.addEventListener(evtName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.add("dragover");
+        }, false);
     });
-    counter.textContent = `${input.value.length} / 500`;
+
+    ["dragleave", "drop"].forEach(evtName => {
+        dropZone.addEventListener(evtName, (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            dropZone.classList.remove("dragover");
+        }, false);
+    });
+
+    dropZone.addEventListener("drop", (e) => {
+        const dt = e.dataTransfer;
+        const file = dt && dt.files && dt.files[0];
+        if (file) processSelectedImage(file);
+    }, false);
 }
 
 // Health Check
@@ -2400,8 +2876,8 @@ async function startSimulation() {
     if (isSimulating) return;
 
     const message = document.getElementById("message-input").value.trim();
-    if (!message) {
-        alert("Please enter a message to simulate.");
+    if (!message && !selectedImageFile) {
+        alert("Please enter a message or upload an image to simulate.");
         return;
     }
 
@@ -2410,25 +2886,13 @@ async function startSimulation() {
     const channel = document.getElementById("channel-select").value;
     const intervention = document.getElementById("intervention-input").value.trim();
 
-    const payload = {
-        message: message,
-        pack_id: packId,
-        channel: channel,
-        intervention: intervention || null,
-        n_people: 120,
-        demo_mode: currentRuntimeMode === "demo",
-        use_llm: currentRuntimeMode === "live",
-    };
-
+    let customDesc = null;
     if (presetSelect === "custom") {
-        const customDesc = document.getElementById("custom-audience-input").value.trim();
+        customDesc = document.getElementById("custom-audience-input").value.trim();
         if (!customDesc) {
             alert("Please enter a custom audience description or choose a preset.");
             return;
         }
-        payload.audience_description = customDesc;
-    } else {
-        payload.audience_preset = presetSelect;
     }
 
     // UI Updates
@@ -2441,14 +2905,17 @@ async function startSimulation() {
     const stagePulse = document.getElementById("stage-pulse");
     const stageText = document.getElementById("stage-text");
     stagePulse.classList.add("active");
-    stageText.textContent = "Initiating pipeline job...";
+    stageText.textContent = selectedImageFile ? "Reading image..." : "Initiating pipeline job...";
+
+    const imgStatus = document.getElementById("image-status-line");
+    if (imgStatus && selectedImageFile) imgStatus.textContent = "Reading image...";
 
     document.getElementById("status-degraded-tag").classList.remove("visible");
     document.getElementById("results-section").style.display = "none";
     dismissErrorBanner();
 
-    // 1. Fast Offline Demo Mode: execute instantly using precomputed bundle
-    if (currentRuntimeMode === "demo") {
+    // 1. Fast Offline Demo Mode: execute instantly using precomputed bundle (only when no image is uploaded)
+    if (currentRuntimeMode === "demo" && !selectedImageFile) {
         stageText.textContent = "Reading message (Demo Cache)...";
 
         let match = null;
@@ -2502,13 +2969,51 @@ async function startSimulation() {
         }
     }
 
-    // 2. Live Mode (or fallback network request)
+    // 2. Live or Multipart Simulation Request
     try {
-        const initResp = await fetch(`${API_BASE}/simulate`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-        });
+        let initResp;
+        if (selectedImageFile) {
+            const formData = new FormData();
+            formData.append("message", message);
+            formData.append("pack_id", packId);
+            formData.append("channel", channel);
+            if (intervention) formData.append("intervention", intervention);
+            formData.append("n_people", "120");
+            formData.append("demo_mode", currentRuntimeMode === "demo" ? "true" : "false");
+            formData.append("use_llm", currentRuntimeMode === "live" ? "true" : "false");
+            if (customDesc) {
+                formData.append("audience_description", customDesc);
+            } else {
+                formData.append("audience_preset", presetSelect);
+            }
+            formData.append("image", selectedImageFile);
+
+            initResp = await fetch(`${API_BASE}/simulate`, {
+                method: "POST",
+                body: formData,
+            });
+        } else {
+            const payload = {
+                message: message,
+                pack_id: packId,
+                channel: channel,
+                intervention: intervention || null,
+                n_people: 120,
+                demo_mode: currentRuntimeMode === "demo",
+                use_llm: currentRuntimeMode === "live",
+            };
+            if (customDesc) {
+                payload.audience_description = customDesc;
+            } else {
+                payload.audience_preset = presetSelect;
+            }
+
+            initResp = await fetch(`${API_BASE}/simulate`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(payload),
+            });
+        }
 
         if (!initResp.ok) {
             const err = await initResp.json();
@@ -2539,6 +3044,9 @@ async function startSimulation() {
         runBtn.disabled = false;
         runBtnText.textContent = "Run Simulation";
         isSimulating = false;
+
+        const imgStatus = document.getElementById("image-status-line");
+        if (imgStatus && selectedImageFile) imgStatus.textContent = "Upload failed";
 
         showErrorBanner(
             "Live Simulation Failed",
@@ -2630,6 +3138,20 @@ function handleSimulationComplete(result, isHistoryRecall = false) {
     renderVerdictCard(result);
     renderDemographicHeatmap(result);
     renderStrategicInsights(result);
+
+    // Multimodal Fallback Notification & Status Update
+    const fallbackNote = document.getElementById("image-fallback-note");
+    const imgStatus = document.getElementById("image-status-line");
+    if (result.image_note === "image not analysed" || result.features?.image_note === "image not analysed") {
+        if (fallbackNote) {
+            fallbackNote.textContent = "⚠ image not analysed — fell back to text";
+            fallbackNote.style.display = "block";
+        }
+        if (imgStatus) imgStatus.textContent = "image not analysed";
+    } else if (selectedImageFile) {
+        if (fallbackNote) fallbackNote.style.display = "none";
+        if (imgStatus) imgStatus.textContent = "Image analyzed successfully";
+    }
 
     document.getElementById("results-section").style.display = "flex";
 

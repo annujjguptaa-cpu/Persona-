@@ -93,8 +93,8 @@ CURRENCY_REGEX = re.compile(
 DEVANAGARI_REGEX = re.compile(r"[\u0900-\u097F]")
 
 
-def sanitize_input(text: str) -> str:
-    """Validate, clean control characters, strip whitespace, and limit to 500 characters.
+def sanitize_input(text: str, max_chars: int = 500) -> str:
+    """Validate, clean control characters, strip whitespace, and limit characters (default 500).
 
     Raises:
         ValueError: If input is empty or contains only whitespace/control characters.
@@ -111,7 +111,7 @@ def sanitize_input(text: str) -> str:
     if not cleaned:
         raise ValueError("Message text cannot be empty")
 
-    return cleaned[:500]
+    return cleaned[:max_chars]
 
 
 def extract_rule_features(text: str, pack_id: Optional[str] = None) -> MessageFeatures:
@@ -427,30 +427,51 @@ def analyze_message(
     text: str,
     pack_id: Optional[str] = None,
     use_llm: bool = True,
+    extra_features: Optional[Dict[str, Any]] = None,
+    max_chars: int = 500,
 ) -> MessageFeatures:
     """Analyze a candidate message, blending LLM intelligence with deterministic rule fallback.
 
     Args:
-        text: Candidate message text to evaluate (stripped to max 500 characters).
+        text: Candidate message text to evaluate (stripped to max characters).
         pack_id: Optional domain pack identifier for context.
         use_llm: Whether to attempt local LLM extraction or use rules only.
+        extra_features: Optional media/image features (has_qr, has_official_look, visual_appeal).
+        max_chars: Maximum character limit for sanitization (default 500, or 600 for multimodal).
 
     Returns:
         Validated MessageFeatures model.
     """
-    clean_text = sanitize_input(text)
+    clean_text = sanitize_input(text, max_chars=max_chars)
 
     # 1. Deterministic rule-based extraction
     rule_features = extract_rule_features(clean_text, pack_id=pack_id)
 
     if not use_llm:
-        return rule_features
+        final_features = rule_features
+    else:
+        # 2. Local LLM extraction
+        llm_features = extract_llm_features(clean_text, pack_id=pack_id)
 
-    # 2. Local LLM extraction
-    llm_features = extract_llm_features(clean_text, pack_id=pack_id)
+        # 3. Blend: final = 0.6 * llm + 0.4 * rules when both exist
+        if llm_features is not None:
+            final_features = blend_features(llm_features, rule_features)
+        else:
+            final_features = rule_features
 
-    # 3. Blend: final = 0.6 * llm + 0.4 * rules when both exist
-    if llm_features is not None:
-        return blend_features(llm_features, rule_features)
+    # 4. Integrate multimodal media features if supplied
+    if extra_features:
+        if "has_qr" in extra_features and extra_features["has_qr"] is not None:
+            final_features.has_qr = bool(extra_features["has_qr"])
+            if final_features.has_qr and not final_features.has_link:
+                final_features.has_link = True
+        if "has_official_look" in extra_features and extra_features["has_official_look"] is not None:
+            final_features.has_official_look = bool(extra_features["has_official_look"])
+            if final_features.has_official_look and (final_features.authority_claim == "none" or final_features.authority_claim == 0.0):
+                final_features.authority_claim = "govt"
+        if "visual_appeal" in extra_features and extra_features["visual_appeal"] is not None:
+            final_features.visual_appeal = float(extra_features["visual_appeal"])
+        if "image_note" in extra_features:
+            final_features.image_note = extra_features["image_note"]
 
-    return rule_features
+    return final_features

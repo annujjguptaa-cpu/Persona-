@@ -13,15 +13,17 @@ Exposes:
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import logging
 import time
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 import uuid
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Request, UploadFile, File, Form
+from starlette.datastructures import UploadFile as StarletteUploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -45,7 +47,14 @@ from backend.config import (
 from backend.domain_packs import PACKS, SCAM_FRAUD, list_public_packs
 from backend.engine import run_simulation
 from backend.insights import compare_interventions, generate_strategic_insights
+from backend.media_ingest import (
+    MEDIA_CACHE_DIR,
+    analyze_image_with_vision_model,
+    build_message_description,
+    validate_image_metadata,
+)
 from backend.models import Archetype, MessageFeatures, Person, Reaction, SimulationResult
+from backend.mood import MoodState, load_mood, save_mood
 from backend.network import build_network
 from backend.population import generate_population
 from backend.reactions import get_reactions
@@ -220,11 +229,41 @@ def get_precomputed_data():
 
 
 # ---------------------------------------------------------------------------
+# Community Mood & Macro Climate Endpoints
+# ---------------------------------------------------------------------------
+
+class MoodUpdateRequest(BaseModel):
+    anxiety: float = Field(..., ge=0.0, le=1.0, description="Community macro anxiety index (0-1)")
+    trust_in_health_system: float = Field(..., ge=0.0, le=1.0, description="Institutional healthcare trust index (0-1)")
+    rumour_level: float = Field(..., ge=0.0, le=1.0, description="Ambient misinformation & rumour saturation (0-1)")
+
+
+@app.get("/mood")
+def api_get_mood():
+    """Return current aggregate community MoodState."""
+    mood = load_mood()
+    return mood.model_dump()
+
+
+@app.post("/mood")
+def api_update_mood(req: MoodUpdateRequest):
+    """Update aggregate community MoodState in mood.json with current UTC timestamp."""
+    new_mood = MoodState(
+        anxiety=req.anxiety,
+        trust_in_health_system=req.trust_in_health_system,
+        rumour_level=req.rumour_level,
+        updated_at=datetime.now(timezone.utc).isoformat(),
+    )
+    saved = save_mood(new_mood)
+    return saved.model_dump()
+
+
+# ---------------------------------------------------------------------------
 # Simulation Pipeline Models & Execution
 # ---------------------------------------------------------------------------
 
 class SimulateRequest(BaseModel):
-    message: str = Field(..., description="Message text to simulate (max 500 characters)")
+    message: str = Field(default="", description="Message text to simulate (max 600 characters for media)")
     pack_id: str = Field(default="scam_fraud", description="Domain pack ID")
     audience_preset: Optional[str] = Field(default=None, description="Preset ID (e.g. urban_seniors)")
     audience_description: Optional[str] = Field(default=None, description="Custom audience description")
@@ -234,6 +273,8 @@ class SimulateRequest(BaseModel):
     demo_mode: bool = Field(default=False, description="Use offline precomputed cache for instant response")
     seed: int = Field(default=SEED, description="Simulation seed")
     n_people: int = Field(default=N_PEOPLE, ge=10, le=500, description="Synthetic population size")
+    extra_features: Optional[Dict[str, Any]] = Field(default=None, description="Multimodal features (has_qr, has_official_look, visual_appeal)")
+    media_info: Optional[Dict[str, Any]] = Field(default=None, description="Media analysis diagnostic metadata")
 
 
 def execute_pipeline(
@@ -250,7 +291,13 @@ def execute_pipeline(
         "progress": 0.10,
         "detail": "Extracting message features, claims, and suspicious cues",
     })
-    features = analyze_message(req.message, pack_id=pack.id, use_llm=use_llm)
+    features = analyze_message(
+        req.message,
+        pack_id=pack.id,
+        use_llm=use_llm,
+        extra_features=req.extra_features,
+        max_chars=600 if req.extra_features else 500,
+    )
 
     # Stage 2: Designing audience
     job.record_event("progress", {
@@ -367,6 +414,11 @@ def execute_pipeline(
         "insights": insights_data,
     }
 
+    if req.media_info:
+        final_result["media"] = req.media_info
+    if getattr(features, "image_note", None):
+        final_result["image_note"] = features.image_note
+
     return final_result
 
 
@@ -420,9 +472,10 @@ async def run_simulation_pipeline_task(job_id: str, req: SimulateRequest) -> Non
 
 
 @app.post("/simulate")
-async def api_simulate(req: SimulateRequest, background_tasks: BackgroundTasks):
+async def api_simulate(request: Request, background_tasks: BackgroundTasks):
     """Initiate message spread simulation pipeline as an asynchronous background task.
 
+    Supports both application/json (SimulateRequest) and multipart/form-data (with optional image file).
     Returns job_id to stream real-time progress events via GET /stream/{job_id}.
     """
     global active_job_id
@@ -434,14 +487,139 @@ async def api_simulate(req: SimulateRequest, background_tasks: BackgroundTasks):
             detail="A simulation job is currently in progress. Only 1 concurrent job is allowed.",
         )
 
-    # 2. Request Validation: 500 char limit & empty checks
+    # 2. Extract payload (multipart or JSON)
+    ct = request.headers.get("content-type", "")
+    req: SimulateRequest
+
+    if "multipart/form-data" in ct:
+        form = await request.form()
+        msg_raw = form.get("message")
+        typed_message = str(msg_raw) if msg_raw is not None else ""
+        pack_id = str(form.get("pack_id", "scam_fraud"))
+        audience_preset = form.get("audience_preset") or None
+        if audience_preset:
+            audience_preset = str(audience_preset)
+        audience_description = form.get("audience_description") or None
+        if audience_description:
+            audience_description = str(audience_description)
+        channel = form.get("channel") or None
+        if channel:
+            channel = str(channel)
+        intervention = form.get("intervention") or None
+        if intervention:
+            intervention = str(intervention)
+
+        def _parse_bool(val: Any) -> Optional[bool]:
+            if val is None or val == "":
+                return None
+            if isinstance(val, bool):
+                return val
+            return str(val).lower() in ("true", "1", "yes")
+
+        use_llm = _parse_bool(form.get("use_llm"))
+        demo_mode = bool(_parse_bool(form.get("demo_mode"))) if form.get("demo_mode") is not None else False
+
+        try:
+            seed = int(form.get("seed", SEED))
+        except (ValueError, TypeError):
+            seed = SEED
+
+        try:
+            n_people = int(form.get("n_people", N_PEOPLE))
+        except (ValueError, TypeError):
+            n_people = N_PEOPLE
+
+        image_file = form.get("image")
+        extra_features = None
+        media_info = None
+
+        if (isinstance(image_file, (UploadFile, StarletteUploadFile)) or hasattr(image_file, "filename")) and bool(getattr(image_file, "filename", None) and str(image_file.filename).strip()):
+            image_bytes = await image_file.read()
+            size_bytes = len(image_bytes)
+
+            # Validate image metadata (size <= 8MB, format in png, jpg, webp)
+            try:
+                validate_image_metadata(
+                    filename=image_file.filename,
+                    content_type=image_file.content_type,
+                    size_bytes=size_bytes,
+                )
+            except ValueError as val_err:
+                raise HTTPException(status_code=400, detail=str(val_err))
+
+            # Temporary file write and cleanup
+            temp_filename = f"upload_{uuid.uuid4().hex}_{Path(image_file.filename).name}"
+            temp_path = MEDIA_CACHE_DIR / temp_filename
+            try:
+                with open(temp_path, "wb") as f:
+                    f.write(image_bytes)
+
+                media_res = analyze_image_with_vision_model(
+                    image_bytes=image_bytes,
+                    filename=image_file.filename,
+                    content_type=image_file.content_type,
+                )
+                media_info = media_res.model_dump()
+                extra_features = {
+                    "has_qr": media_res.has_qr,
+                    "has_official_look": media_res.has_official_look,
+                    "visual_appeal": media_res.visual_appeal,
+                }
+                if media_res.image_note:
+                    extra_features["image_note"] = media_res.image_note
+
+                composite_msg = build_message_description(
+                    typed_text=typed_message,
+                    media_result=media_res,
+                    max_chars=600,
+                )
+            finally:
+                if temp_path.exists():
+                    try:
+                        temp_path.unlink()
+                    except Exception as unlink_err:
+                        logger.warning("Failed to unlink temp upload %s: %s", temp_path, unlink_err)
+        else:
+            composite_msg = typed_message.strip()
+
+        # If vision failed and typed text was empty, provide a fallback note so simulation proceeds
+        if not composite_msg:
+            if extra_features and extra_features.get("image_note"):
+                composite_msg = "[Image content - image not analysed]"
+            elif image_file:
+                composite_msg = "[Image content]"
+
+        req = SimulateRequest(
+            message=composite_msg,
+            pack_id=pack_id,
+            audience_preset=audience_preset,
+            audience_description=audience_description,
+            channel=channel,
+            intervention=intervention,
+            use_llm=use_llm,
+            demo_mode=demo_mode,
+            seed=seed,
+            n_people=n_people,
+            extra_features=extra_features,
+            media_info=media_info,
+        )
+    else:
+        try:
+            body = await request.json()
+            req = SimulateRequest.model_validate(body)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Invalid request payload: {exc}")
+
+    # 3. Request Validation: 500 char limit (600 for multimodal) & empty checks
     msg_clean = req.message.strip() if req.message else ""
     if not msg_clean:
         raise HTTPException(status_code=400, detail="Message cannot be empty.")
-    if len(msg_clean) > 500:
+
+    max_msg_len = 600 if req.extra_features else 500
+    if len(msg_clean) > max_msg_len:
         raise HTTPException(
             status_code=400,
-            detail=f"Message exceeds maximum allowed length of 500 characters (length={len(msg_clean)}).",
+            detail=f"Message exceeds maximum allowed length of {max_msg_len} characters (length={len(msg_clean)}).",
         )
 
     if req.intervention and len(req.intervention.strip()) > 500:
