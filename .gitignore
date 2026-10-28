@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+
+# Data cache (per project specification)
+data/cache/*
+!data/cache/.gitkeep
+
+# Testing & linting
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Environment and IDE
+.env
+.idea/
+.vscode/
+*.swp
+.DS_Store

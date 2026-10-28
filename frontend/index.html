@@ -1,0 +1,3091 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Persona — Synthetic Audience Message Spread Simulator</title>
+    <meta name="description" content="Simulate message diffusion, community immunity, and virality across synthetic audience populations.">
+    
+    <!-- Google Fonts: Fraunces (Headings), IBM Plex Mono (Labels/Stats), Plus Jakarta Sans (Body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;0,9..144,800;1,9..144,400;1,9..144,600&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- D3.js v7 CDN -->
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+
+    <style>
+        :root {
+            --bg: #f4f1ea;
+            --surface: #ffffff;
+            --surface-warm: #faf8f5;
+            --surface-dim: #ede9df;
+            
+            --ink: #1a1a1a;
+            --ink-muted: #5e5a52;
+            --ink-faint: #8e8a80;
+            
+            --hairline: #d9d4c7;
+            --hairline-dark: #b9b5aa;
+            
+            --node-grey: #b9b5aa;
+            --node-light-blue: #91a7ff;
+            --node-blue: #2f4bd8;
+            --node-orange: #e8590c;
+            --node-green: #2b8a3e;
+            
+            --font-serif: 'Fraunces', Georgia, serif;
+            --font-mono: 'IBM Plex Mono', SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            
+            --radius-sm: 3px;
+            --radius-md: 6px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--ink);
+            font-family: var(--font-sans);
+            line-height: 1.55;
+            -webkit-font-smoothing: antialiased;
+            min-height: 100vh;
+            padding-bottom: 5rem;
+        }
+
+        /* Container & Typography */
+        .page-wrap {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 2.5rem 1.25rem;
+        }
+
+        @media (min-width: 768px) {
+            .page-wrap {
+                padding: 3.5rem 2.5rem;
+            }
+        }
+
+        h1, h2, h3, h4 {
+            font-family: var(--font-serif);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+            color: var(--ink);
+        }
+
+        .mono {
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            letter-spacing: -0.01em;
+        }
+
+        /* Top Header */
+        header.site-header {
+            border-bottom: 1px solid var(--hairline);
+            padding-bottom: 2rem;
+            margin-bottom: 2.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        @media (min-width: 768px) {
+            header.site-header {
+                flex-direction: row;
+                align-items: flex-end;
+                justify-content: space-between;
+            }
+        }
+
+        .header-title-block h1 {
+            font-size: 2.75rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.05;
+        }
+
+        .header-title-block p.tagline {
+            font-family: var(--font-serif);
+            font-style: italic;
+            font-size: 1.15rem;
+            color: var(--ink-muted);
+            margin-top: 0.35rem;
+        }
+
+        .system-meta {
+            display: flex;
+            align-items: center;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.35rem 0.75rem;
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+            color: var(--ink-muted);
+        }
+
+        .status-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: var(--node-green);
+        }
+
+        .status-dot.pulsing {
+            animation: pulse-dot 1.8s infinite ease-in-out;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.3; transform: scale(0.8); }
+        }
+
+        /* View Mode Switcher */
+        .mode-tabs {
+            display: inline-flex;
+            border: 1px solid var(--hairline);
+            background: var(--surface-warm);
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+
+        .mode-tab-btn {
+            border: none;
+            background: transparent;
+            padding: 0.6rem 1.4rem;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--ink-muted);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .mode-tab-btn:hover {
+            color: var(--ink);
+            background: rgba(0,0,0,0.03);
+        }
+
+        .mode-tab-btn.active {
+            background: var(--ink);
+            color: var(--bg);
+        }
+
+        /* Two Column Layout for Main Simulation */
+        .layout-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 2.25rem;
+            align-items: start;
+        }
+
+        @media (min-width: 1024px) {
+            .layout-grid {
+                grid-template-columns: 410px 1fr;
+            }
+        }
+
+        /* Card Styles: generous whitespace, 1px thin hairline, no shadows */
+        .editorial-card {
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            padding: 1.75rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .card-header-line {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--hairline);
+        }
+
+        .card-header-line h2 {
+            font-size: 1.35rem;
+            font-weight: 700;
+        }
+
+        /* Form Controls */
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--ink-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .form-group textarea,
+        .form-group select,
+        .form-group input[type="text"] {
+            width: 100%;
+            background: var(--surface-warm);
+            border: 1px solid var(--hairline);
+            color: var(--ink);
+            padding: 0.65rem 0.85rem;
+            font-family: var(--font-sans);
+            font-size: 0.92rem;
+            border-radius: var(--radius-sm);
+            outline: none;
+            transition: border-color 0.15s ease;
+        }
+
+        .form-group textarea {
+            font-family: var(--font-sans);
+            resize: vertical;
+            min-height: 120px;
+            line-height: 1.45;
+        }
+
+        .form-group textarea:focus,
+        .form-group select:focus,
+        .form-group input[type="text"]:focus {
+            border-color: var(--ink);
+            background: #fff;
+        }
+
+        .char-counter {
+            text-align: right;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--ink-faint);
+            margin-top: 0.3rem;
+        }
+
+        .char-counter.limit-near {
+            color: var(--node-orange);
+        }
+
+        /* Sample Chips */
+        .sample-chips-wrap {
+            margin-top: 0.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .sample-chips-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--ink-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .chips-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+
+        .sample-chip {
+            border: 1px solid var(--hairline);
+            background: var(--surface-warm);
+            padding: 0.3rem 0.65rem;
+            font-size: 0.8rem;
+            font-family: var(--font-mono);
+            color: var(--ink);
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .sample-chip:hover {
+            border-color: var(--ink);
+            background: var(--surface);
+        }
+
+        .sample-chip.legit-chip {
+            color: var(--node-green);
+            border-color: rgba(43, 138, 62, 0.4);
+        }
+
+        .sample-chip.legit-chip:hover {
+            background: rgba(43, 138, 62, 0.06);
+            border-color: var(--node-green);
+        }
+
+        /* Custom audience input display */
+        .custom-audience-box {
+            display: none;
+            margin-top: 0.5rem;
+        }
+
+        .custom-audience-box.visible {
+            display: block;
+        }
+
+        /* Primary Action Button */
+        .btn-primary {
+            width: 100%;
+            background: var(--ink);
+            color: var(--bg);
+            border: 1px solid var(--ink);
+            padding: 0.85rem 1.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.92rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            border-radius: var(--radius-sm);
+            transition: background 0.15s ease, opacity 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #333;
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        /* Graph Panel Container */
+        .graph-panel {
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+            padding: 1.5rem;
+            position: relative;
+        }
+
+        /* Mono Status Bar with Pulsing Dot */
+        .live-status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.65rem 1rem;
+            background: var(--surface-warm);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+            margin-bottom: 1.25rem;
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+        }
+
+        .status-left {
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+        }
+
+        .pulsing-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: var(--ink-faint);
+        }
+
+        .pulsing-indicator.active {
+            background-color: var(--node-blue);
+            animation: pulse-dot 1.2s infinite ease-in-out;
+        }
+
+        .status-degraded-tag {
+            display: none;
+            background: #fff3bf;
+            color: #d9480f;
+            border: 1px solid #ffd43b;
+            padding: 0.15rem 0.45rem;
+            font-size: 0.72rem;
+            border-radius: 3px;
+        }
+
+        .status-degraded-tag.visible {
+            display: inline-block;
+        }
+
+        /* SVG Graph Canvas */
+        .graph-viewport {
+            width: 100%;
+            height: 480px;
+            background: var(--surface-warm);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+            position: relative;
+            overflow: hidden;
+            cursor: grab;
+        }
+
+        .graph-viewport:active {
+            cursor: grabbing;
+        }
+
+        .graph-viewport svg {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        /* Graph Overlay Legend */
+        .graph-legend {
+            position: absolute;
+            bottom: 12px;
+            left: 12px;
+            background: rgba(255, 255, 255, 0.92);
+            backdrop-filter: blur(4px);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+            padding: 0.6rem 0.85rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.35rem;
+            font-family: var(--font-mono);
+            font-size: 0.73rem;
+            color: var(--ink-muted);
+            pointer-events: none;
+        }
+
+        .legend-row {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .legend-node {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .legend-node.square {
+            border-radius: 2px;
+            border: 1.5px solid var(--ink);
+            background: transparent;
+        }
+
+        .legend-node.ring {
+            border: 1.5px solid var(--ink);
+            background: var(--node-blue);
+        }
+
+        /* Graph Controls (Play, Slider, Speed) */
+        .graph-controls {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-top: 1.25rem;
+            padding: 0.85rem 1rem;
+            background: var(--surface-warm);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .btn-ctrl {
+            border: 1px solid var(--hairline);
+            background: var(--surface);
+            color: var(--ink);
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-ctrl:hover {
+            border-color: var(--ink);
+        }
+
+        .wave-slider-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-grow: 1;
+            min-width: 180px;
+        }
+
+        .wave-slider-wrap input[type="range"] {
+            flex-grow: 1;
+            accent-color: var(--ink);
+            cursor: pointer;
+        }
+
+        .wave-label-indicator {
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            font-weight: 600;
+            min-width: 70px;
+        }
+
+        /* Recent Runs Strip */
+        .recent-runs-strip {
+            border-top: 1px solid var(--hairline);
+            padding: 0.75rem 1rem;
+            background: var(--surface-warm);
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .recent-runs-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+
+        .recent-runs-title-group {
+            display: flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .recent-runs-title {
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--ink-muted);
+        }
+
+        .recent-runs-count {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--ink-faint);
+        }
+
+        .btn-clear-runs {
+            background: transparent;
+            border: 1px solid var(--hairline);
+            padding: 0.2rem 0.55rem;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            cursor: pointer;
+            color: var(--ink-muted);
+            border-radius: var(--radius-sm);
+            transition: all 0.15s ease;
+            line-height: 1.3;
+        }
+
+        .btn-clear-runs:hover {
+            border-color: var(--node-orange);
+            color: var(--node-orange);
+            background: var(--surface);
+        }
+
+        .recent-runs-chips-wrap {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.45rem;
+            align-items: center;
+            min-height: 28px;
+        }
+
+        .recent-runs-empty {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--ink-faint);
+            font-style: italic;
+        }
+
+        /* Run Chip - Cream/Hairline Style with Verdict in Mono */
+        .run-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+            padding: 0.28rem 0.6rem;
+            cursor: pointer;
+            text-align: left;
+            font-family: var(--font-sans);
+            font-size: 0.74rem;
+            color: var(--ink);
+            transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+            user-select: none;
+            max-width: 100%;
+        }
+
+        .run-chip:hover {
+            border-color: var(--hairline-dark);
+            background: var(--surface-dim);
+        }
+
+        .run-chip.active {
+            border-color: var(--ink);
+            background: var(--surface-dim);
+            outline: 1px solid var(--ink);
+        }
+
+        .run-chip-verdict {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 0.08rem 0.32rem;
+            border-radius: 2px;
+            background: var(--surface-warm);
+            border: 1px solid var(--hairline);
+            color: var(--ink);
+            letter-spacing: -0.01em;
+            white-space: nowrap;
+        }
+
+        .run-chip.harmful-verdict .run-chip-verdict {
+            border-color: rgba(232, 89, 12, 0.35);
+            color: var(--node-orange);
+            background: rgba(232, 89, 12, 0.06);
+        }
+
+        .run-chip.beneficial-verdict .run-chip-verdict {
+            border-color: rgba(47, 75, 216, 0.35);
+            color: var(--node-blue);
+            background: rgba(47, 75, 216, 0.06);
+        }
+
+        .run-chip-pack {
+            font-family: var(--font-mono);
+            font-size: 0.66rem;
+            color: var(--ink-faint);
+            text-transform: lowercase;
+            white-space: nowrap;
+        }
+
+        .run-chip-msg {
+            color: var(--ink-muted);
+            font-size: 0.72rem;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Tooltip */
+        .d3-tooltip {
+            position: absolute;
+            display: none;
+            background: var(--surface);
+            border: 1px solid var(--ink);
+            padding: 0.75rem 0.95rem;
+            border-radius: var(--radius-sm);
+            pointer-events: none;
+            font-size: 0.82rem;
+            z-index: 50;
+            max-width: 260px;
+            box-shadow: none;
+        }
+
+        .d3-tooltip .tt-name {
+            font-family: var(--font-serif);
+            font-weight: 700;
+            font-size: 0.95rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .d3-tooltip .tt-arch {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--ink-muted);
+            margin-bottom: 0.4rem;
+        }
+
+        .d3-tooltip .tt-state {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            margin-bottom: 0.35rem;
+        }
+
+        .d3-tooltip .tt-reason {
+            font-size: 0.78rem;
+            color: var(--ink-muted);
+            border-top: 1px solid var(--hairline);
+            padding-top: 0.35rem;
+            font-style: italic;
+        }
+
+        /* Post-Simulation Results Grid */
+        .results-section {
+            margin-top: 2.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 2.25rem;
+        }
+
+        /* 1) Verdict Card */
+        .verdict-card {
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            padding: 2.25rem 2rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .verdict-header-row {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .verdict-headline {
+            font-size: 2.85rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
+        }
+
+        .verdict-headline.harmful-outbreak { color: var(--node-orange); }
+        .verdict-headline.harmful-contained { color: var(--node-green); }
+        .verdict-headline.beneficial-breakout { color: var(--node-blue); }
+
+        .verdict-summary {
+            font-family: var(--font-serif);
+            font-size: 1.25rem;
+            color: var(--ink-muted);
+            line-height: 1.45;
+            max-width: 850px;
+        }
+
+        /* 4 Stat Blocks */
+        .stat-blocks-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.25rem;
+            margin-bottom: 1.75rem;
+        }
+
+        @media (min-width: 768px) {
+            .stat-blocks-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+
+        .stat-block {
+            background: var(--surface-warm);
+            border: 1px solid var(--hairline);
+            padding: 1.15rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .stat-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            color: var(--ink-muted);
+            margin-bottom: 0.35rem;
+        }
+
+        .stat-value {
+            font-family: var(--font-mono);
+            font-size: 1.85rem;
+            font-weight: 700;
+            line-height: 1;
+            margin-bottom: 0.65rem;
+        }
+
+        .stat-progress-rail {
+            width: 100%;
+            height: 4px;
+            background: var(--hairline);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .stat-progress-fill {
+            height: 100%;
+            background: var(--ink);
+            width: 0%;
+            transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .stat-progress-fill.orange { background: var(--node-orange); }
+        .stat-progress-fill.blue { background: var(--node-blue); }
+
+        .verdict-weakest-line {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--ink-muted);
+            padding-top: 1.25rem;
+            border-top: 1px solid var(--hairline);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .verdict-weakest-line strong {
+            color: var(--ink);
+        }
+
+        /* 2) Group Heatmap */
+        .heatmap-card {
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            padding: 2rem;
+            border-radius: var(--radius-sm);
+            overflow-x: auto;
+        }
+
+        .heatmap-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .heatmap-header h3 {
+            font-size: 1.4rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .heatmap-header p {
+            font-size: 0.88rem;
+            color: var(--ink-muted);
+        }
+
+        table.heatmap-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-family: var(--font-mono);
+            font-size: 0.82rem;
+            min-width: 620px;
+        }
+
+        table.heatmap-table th {
+            text-align: left;
+            padding: 0.75rem 0.9rem;
+            border-bottom: 1px solid var(--hairline);
+            font-weight: 600;
+            color: var(--ink-muted);
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.05em;
+        }
+
+        table.heatmap-table td {
+            padding: 0.65rem 0.9rem;
+            border-bottom: 1px solid var(--hairline);
+            color: var(--ink);
+        }
+
+        table.heatmap-table td.arch-cell {
+            font-family: var(--font-sans);
+            font-weight: 600;
+            font-size: 0.88rem;
+        }
+
+        .heat-cell {
+            text-align: right;
+            padding: 0.5rem 0.8rem;
+            border-radius: var(--radius-sm);
+            transition: background 0.15s ease;
+        }
+
+        /* 3) Insights List */
+        .insights-card {
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            padding: 2rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .insights-card h3 {
+            font-size: 1.4rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--hairline);
+        }
+
+        .insights-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1.25rem;
+        }
+
+        .insight-item {
+            background: var(--surface-warm);
+            border: 1px solid var(--hairline);
+            padding: 1.25rem;
+            border-radius: var(--radius-sm);
+            display: flex;
+            flex-direction: column;
+            gap: 0.6rem;
+        }
+
+        .insight-tags {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .pill-tag {
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            padding: 0.2rem 0.5rem;
+            border: 1px solid var(--hairline);
+            background: var(--surface);
+            color: var(--ink-muted);
+            border-radius: 2px;
+        }
+
+        .pill-tag.trigger-pill {
+            border-color: var(--node-orange);
+            color: var(--node-orange);
+        }
+
+        .insight-text {
+            font-family: var(--font-serif);
+            font-size: 1.05rem;
+            line-height: 1.5;
+            color: var(--ink);
+        }
+
+        /* 4) Compare Tab Section */
+        .compare-section {
+            display: none;
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            padding: 2rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .compare-section.active {
+            display: block;
+        }
+
+        .compare-banner {
+            display: none;
+            background: var(--surface-warm);
+            border: 1px solid var(--ink);
+            padding: 1.5rem;
+            border-radius: var(--radius-sm);
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .compare-banner.visible {
+            display: block;
+        }
+
+        .compare-banner h3 {
+            font-size: 1.85rem;
+            font-weight: 800;
+            color: var(--node-green);
+            margin-bottom: 0.35rem;
+        }
+
+        .compare-banner p {
+            font-family: var(--font-serif);
+            font-size: 1.15rem;
+            color: var(--ink-muted);
+        }
+
+        .compare-inputs-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.75rem;
+        }
+
+        @media (min-width: 768px) {
+            .compare-inputs-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .compare-sidebyside-results {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        @media (min-width: 768px) {
+            .compare-sidebyside-results {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        .candidate-result-card {
+            background: var(--surface-warm);
+            border: 1px solid var(--hairline);
+            padding: 1.5rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .candidate-result-card h4 {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+            border-bottom: 1px solid var(--hairline);
+            padding-bottom: 0.5rem;
+        }
+
+        .range-bar-wrap {
+            margin-top: 1rem;
+            padding: 0.75rem;
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+        }
+
+        .range-bar-title {
+            font-family: var(--font-mono);
+            font-size: 0.74rem;
+            color: var(--ink-muted);
+            margin-bottom: 0.4rem;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .range-bar-track {
+            height: 10px;
+            background: var(--hairline);
+            border-radius: 5px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .range-bar-fill {
+            height: 100%;
+            background: var(--node-blue);
+            position: absolute;
+        }
+
+        .compare-footer-note {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--ink-faint);
+            text-align: center;
+            margin-top: 2rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--hairline);
+        }
+
+        /* 5) Explain This Result Collapsible */
+        .explain-drawer {
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+            margin-top: 2.25rem;
+            overflow: hidden;
+        }
+
+        .explain-drawer summary {
+            padding: 1.25rem 1.75rem;
+            font-family: var(--font-mono);
+            font-size: 0.88rem;
+            font-weight: 600;
+            cursor: pointer;
+            outline: none;
+            user-select: none;
+            background: var(--surface-warm);
+            border-bottom: 1px solid transparent;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .explain-drawer[open] summary {
+            border-bottom-color: var(--hairline);
+        }
+
+        .explain-content {
+            padding: 1.75rem;
+            font-size: 0.92rem;
+            color: var(--ink);
+            line-height: 1.6;
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .explain-content {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        .explain-block h5 {
+            font-family: var(--font-serif);
+            font-size: 1.05rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .explain-block p {
+            font-size: 0.86rem;
+            color: var(--ink-muted);
+        }
+
+        /* Runtime Mode Toggle & Active Badge */
+        .runtime-toggle-group {
+            display: inline-flex;
+            align-items: center;
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+            padding: 2px;
+        }
+
+        .runtime-toggle-btn {
+            border: none;
+            background: transparent;
+            padding: 0.35rem 0.85rem;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--ink-muted);
+            cursor: pointer;
+            border-radius: 2px;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .runtime-toggle-btn:hover {
+            color: var(--ink);
+        }
+
+        .runtime-toggle-btn.active {
+            background: var(--ink);
+            color: var(--bg);
+        }
+
+        .mode-indicator-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            padding: 0.35rem 0.75rem;
+            border-radius: var(--radius-sm);
+            font-family: var(--font-mono);
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.02em;
+            border: 1px solid var(--hairline);
+            background: var(--surface);
+            transition: all 0.2s ease;
+        }
+
+        .mode-indicator-badge.demo-mode-active {
+            background: #eef2ff;
+            border-color: #bac8ff;
+            color: var(--node-blue);
+        }
+
+        .mode-indicator-badge.live-mode-active {
+            background: #ebfbee;
+            border-color: #b2f2bb;
+            color: var(--node-green);
+        }
+
+        /* Editorial Error Banner with Retry */
+        .error-banner {
+            display: none;
+            background: #fff5f5;
+            border: 1px solid #ffc9c9;
+            border-left: 4px solid var(--node-orange);
+            padding: 1rem 1.25rem;
+            margin-bottom: 2rem;
+            border-radius: var(--radius-sm);
+        }
+
+        .error-banner.visible {
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        @media (min-width: 768px) {
+            .error-banner.visible {
+                flex-direction: row;
+                align-items: center;
+                justify-content: space-between;
+            }
+        }
+
+        .error-banner-left {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .error-banner-icon {
+            font-size: 1.2rem;
+            color: var(--node-orange);
+            line-height: 1.2;
+        }
+
+        .error-banner-text h4 {
+            font-family: var(--font-serif);
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #c92a2a;
+            margin-bottom: 0.2rem;
+        }
+
+        .error-banner-text p {
+            font-size: 0.86rem;
+            color: var(--ink-muted);
+        }
+
+        .error-banner-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-error-action {
+            padding: 0.45rem 0.9rem;
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            font-weight: 600;
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+
+        .btn-error-retry {
+            background: var(--ink);
+            color: var(--bg);
+            border: 1px solid var(--ink);
+        }
+
+        .btn-error-retry:hover {
+            background: #333;
+        }
+
+        .btn-error-switch {
+            background: var(--surface);
+            color: var(--ink);
+            border: 1px solid var(--hairline);
+        }
+
+        .btn-error-switch:hover {
+            border-color: var(--ink);
+        }
+
+        .btn-error-dismiss {
+            background: transparent;
+            border: none;
+            font-size: 1.35rem;
+            color: var(--ink-faint);
+            cursor: pointer;
+            padding: 0.2rem 0.5rem;
+            line-height: 1;
+        }
+
+        .btn-error-dismiss:hover {
+            color: var(--ink);
+        }
+
+        /* Responsible Use Footer Note */
+        .responsible-use-footer {
+            margin-top: 5rem;
+            padding: 2rem 2.25rem;
+            background: var(--surface-warm);
+            border: 1px solid var(--hairline);
+            border-radius: var(--radius-sm);
+        }
+
+        .responsible-use-footer-header {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .responsible-use-footer-header h4 {
+            font-family: var(--font-serif);
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--ink);
+        }
+
+        .responsible-use-badge {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding: 0.2rem 0.5rem;
+            background: var(--surface);
+            border: 1px solid var(--hairline);
+            border-radius: 2px;
+            color: var(--ink-muted);
+        }
+
+        .responsible-use-footer p {
+            font-size: 0.88rem;
+            color: var(--ink-muted);
+            line-height: 1.6;
+            max-width: 980px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-wrap">
+    
+    <!-- Top Editorial Header -->
+    <header class="site-header">
+        <div class="header-title-block">
+            <h1>Persona</h1>
+            <p class="tagline">Synthetic audience message spread & cascade dynamics simulator</p>
+        </div>
+        <div class="system-meta">
+            <!-- Mode Switcher Toggle: Demo vs Live -->
+            <div class="runtime-toggle-group" title="Switch between offline cached demo and live Ollama reasoning">
+                <button type="button" class="runtime-toggle-btn active" id="btn-mode-demo" onclick="setRuntimeMode('demo')">
+                    Demo mode
+                </button>
+                <button type="button" class="runtime-toggle-btn" id="btn-mode-live" onclick="setRuntimeMode('live')">
+                    Live mode
+                </button>
+            </div>
+
+            <!-- Active Mode Badge -->
+            <div class="mode-indicator-badge demo-mode-active" id="active-mode-badge">
+                <span class="status-dot" id="mode-badge-dot" style="background-color: var(--node-blue);"></span>
+                <span id="mode-badge-text">DEMO (OFFLINE CACHE)</span>
+            </div>
+
+            <div class="status-badge mono">
+                <span class="status-dot" id="system-status-dot"></span>
+                <span id="system-status-text">Connecting...</span>
+            </div>
+            <div class="status-badge mono">
+                <span>Model:</span>
+                <strong id="system-model-text">qwen2.5vl:7b</strong>
+            </div>
+        </div>
+    </header>
+
+    <!-- Error Banner with Retry -->
+    <div id="error-banner" class="error-banner" role="alert">
+        <div class="error-banner-left">
+            <span class="error-banner-icon">⚠</span>
+            <div class="error-banner-text">
+                <h4 id="error-banner-title">Simulation Error</h4>
+                <p id="error-banner-msg">Could not complete live simulation with Ollama.</p>
+            </div>
+        </div>
+        <div class="error-banner-actions">
+            <button type="button" class="btn-error-action btn-error-retry" id="btn-error-retry" onclick="retryLastAction()">
+                Retry
+            </button>
+            <button type="button" class="btn-error-action btn-error-switch" id="btn-error-switch" onclick="switchToDemoMode()">
+                Switch to Demo Mode (Offline)
+            </button>
+            <button type="button" class="btn-error-dismiss" onclick="dismissErrorBanner()" aria-label="Dismiss error banner">×</button>
+        </div>
+    </div>
+
+    <!-- View Mode Switcher -->
+    <div class="mode-tabs">
+        <button class="mode-tab-btn active" id="tab-btn-sim" onclick="switchView('sim')">Simulation</button>
+        <button class="mode-tab-btn" id="tab-btn-comp" onclick="switchView('comp')">Compare Interventions</button>
+    </div>
+
+    <!-- MAIN VIEW: SIMULATION -->
+    <div id="view-sim-wrap">
+        <div class="layout-grid">
+            
+            <!-- Left Input Card -->
+            <aside class="editorial-card">
+                <div class="card-header-line">
+                    <h2>Input Message</h2>
+                    <span class="mono" id="current-pack-label">Scam & Fraud</span>
+                </div>
+
+                <div class="form-group">
+                    <label for="message-input">Message Content</label>
+                    <textarea 
+                        id="message-input" 
+                        maxlength="500" 
+                        placeholder="Type or paste a candidate message here (max 500 characters)..."
+                    >URGENT: Your electricity connection will be disconnected tonight at 9:30 PM due to an unpaid bill. Call 9876543210 immediately or pay via link: http://bit.ly/quick-bill-pay to prevent power cut.</textarea>
+                    <div class="char-counter" id="char-counter">0 / 500</div>
+                </div>
+
+                <!-- Sample Chips -->
+                <div class="sample-chips-wrap">
+                    <div class="sample-chips-label">Try a sample message:</div>
+                    <div class="chips-container" id="sample-chips-container">
+                        <!-- Populated dynamically from pack samples -->
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="pack-select">Domain Pack</label>
+                    <select id="pack-select" onchange="onPackChange()">
+                        <option value="scam_fraud">Scam & Fraud</option>
+                        <option value="health_campaign">Health Campaign</option>
+                        <option value="product_marketing">Product & Marketing</option>
+                        <option value="civic_policy">Civic & Policy</option>
+                        <option value="misinformation">Misinformation</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="preset-select">Audience Preset</label>
+                    <select id="preset-select" onchange="onPresetChange()">
+                        <!-- Populated dynamically -->
+                    </select>
+                    
+                    <div class="custom-audience-box" id="custom-audience-box">
+                        <label for="custom-audience-input" style="margin-top: 0.5rem;">Custom Audience Description</label>
+                        <input type="text" id="custom-audience-input" placeholder="e.g. Rural farmers and small agri-traders in Punjab">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label for="channel-select">Distribution Channel</label>
+                    <select id="channel-select">
+                        <option value="whatsapp">WhatsApp (Small-world group clusters)</option>
+                        <option value="sms">SMS (Direct 1-to-1 broadcast)</option>
+                        <option value="social_feed">Social Feed (Hub broadcast)</option>
+                        <option value="call">Phone Call (Zero forwarding)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="intervention-input">Defensive Intervention (Optional)</label>
+                    <input 
+                        type="text" 
+                        id="intervention-input" 
+                        maxlength="500" 
+                        placeholder="e.g. Official advisory: Discom never disconnects without 15-day notice."
+                    >
+                </div>
+
+                <button class="btn-primary" id="btn-run-sim" onclick="startSimulation()">
+                    <span id="btn-run-sim-text">Run Simulation</span>
+                </button>
+            </aside>
+
+            <!-- Right Graph Canvas Panel -->
+            <section class="graph-panel">
+                <!-- Status line with pulsing dot -->
+                <div class="live-status-bar">
+                    <div class="status-left">
+                        <span class="pulsing-indicator" id="stage-pulse"></span>
+                        <span id="stage-text">Ready to simulate. Enter message and click Run.</span>
+                    </div>
+                    <span class="status-degraded-tag" id="status-degraded-tag">DEGRADED (RULE FALLBACK)</span>
+                </div>
+
+                <!-- D3 Force Canvas -->
+                <div class="graph-viewport" id="graph-viewport">
+                    <svg id="network-svg"></svg>
+                    
+                    <!-- Graph Legend Overlay -->
+                    <div class="graph-legend">
+                        <div class="legend-row">
+                            <span class="legend-node" style="background: var(--node-grey); opacity: 0.5;"></span>
+                            <span>Unaware / Ignored</span>
+                        </div>
+                        <div class="legend-row">
+                            <span class="legend-node" style="background: var(--node-light-blue);"></span>
+                            <span>Noticed</span>
+                        </div>
+                        <div class="legend-row">
+                            <span class="legend-node" style="background: var(--node-blue);"></span>
+                            <span>Engaged</span>
+                        </div>
+                        <div class="legend-row">
+                            <span class="legend-node" style="background: var(--node-orange);"></span>
+                            <span>Acted (Victim / Converted)</span>
+                        </div>
+                        <div class="legend-row">
+                            <span class="legend-node ring"></span>
+                            <span>Sharer (Transmitted)</span>
+                        </div>
+                        <div class="legend-row">
+                            <span class="legend-node square"></span>
+                            <span>Reporter (Flagged)</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interactive Timeline & Wave Slider Controls -->
+                <div class="graph-controls">
+                    <div class="control-group">
+                        <button class="btn-ctrl" id="btn-play-pause" onclick="togglePlayPause()">Play</button>
+                        <button class="btn-ctrl" onclick="resetWaveAnimation()">Reset</button>
+                    </div>
+
+                    <div class="wave-slider-wrap">
+                        <span class="mono" style="color: var(--ink-muted);">Timeline:</span>
+                        <input 
+                            type="range" 
+                            id="wave-slider" 
+                            min="0" 
+                            max="0" 
+                            value="0" 
+                            step="1" 
+                            oninput="onWaveSliderInput(this.value)"
+                        >
+                        <span class="wave-label-indicator" id="wave-slider-label">Wave 0</span>
+                    </div>
+
+                    <div class="control-group">
+                        <span class="mono" style="color: var(--ink-muted);">Speed:</span>
+                        <select id="playback-speed" class="btn-ctrl" style="padding: 0.3rem;" onchange="onSpeedChange(this.value)">
+                            <option value="2000">0.5x</option>
+                            <option value="1200" selected>1.0x</option>
+                            <option value="600">2.0x</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Recent runs strip under the graph -->
+                <div class="recent-runs-strip" id="recent-runs-strip">
+                    <div class="recent-runs-header">
+                        <div class="recent-runs-title-group">
+                            <span class="recent-runs-title mono">Recent runs</span>
+                            <span class="recent-runs-count mono" id="recent-runs-count">(0)</span>
+                        </div>
+                        <button type="button" class="btn-clear-runs mono" id="btn-clear-runs" onclick="clearRecentRuns()" style="display: none;">Clear</button>
+                    </div>
+                    <div class="recent-runs-chips-wrap" id="recent-runs-chips">
+                        <span class="recent-runs-empty mono">No recent runs yet. Run a simulation to log runs here.</span>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+
+        <!-- RESULTS SECTION (VERDICT, HEATMAP, INSIGHTS) -->
+        <div class="results-section" id="results-section" style="display: none;">
+            
+            <!-- 1) Verdict Card -->
+            <div class="verdict-card">
+                <div class="verdict-header-row">
+                    <h2 class="verdict-headline" id="verdict-label">Contained.</h2>
+                    <p class="verdict-summary" id="verdict-summary">Evaluating cascade dynamics...</p>
+                </div>
+
+                <!-- 4 Stat Blocks -->
+                <div class="stat-blocks-grid">
+                    <div class="stat-block">
+                        <div class="stat-label">Reach %</div>
+                        <div class="stat-value" id="stat-reach-val">0.0%</div>
+                        <div class="stat-progress-rail">
+                            <div class="stat-progress-fill" id="stat-reach-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-block">
+                        <div class="stat-label" id="stat-act-label">Acted Count</div>
+                        <div class="stat-value" id="stat-act-val">0</div>
+                        <div class="stat-progress-rail">
+                            <div class="stat-progress-fill orange" id="stat-act-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-block">
+                        <div class="stat-label">Reproduction R0</div>
+                        <div class="stat-value" id="stat-r0-val">0.00</div>
+                        <div class="stat-progress-rail">
+                            <div class="stat-progress-fill blue" id="stat-r0-bar"></div>
+                        </div>
+                    </div>
+
+                    <div class="stat-block">
+                        <div class="stat-label">Waves Reached</div>
+                        <div class="stat-value" id="stat-waves-val">0</div>
+                        <div class="stat-progress-rail">
+                            <div class="stat-progress-fill" id="stat-waves-bar"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="verdict-weakest-line">
+                    <span>Weakest demographic signal:</span>
+                    <strong id="weakest-signal-text">Identifying vulnerable cohort...</strong>
+                    <span style="margin: 0 0.5rem; opacity: 0.4;">|</span>
+                    <span>Primary psychological trigger:</span>
+                    <strong id="primary-trigger-text">None</strong>
+                </div>
+            </div>
+
+            <!-- 2) Group Heatmap -->
+            <div class="heatmap-card">
+                <div class="heatmap-header">
+                    <h3>Demographic Archetype Heatmap</h3>
+                    <p>Subgroup conversion and propagation rates sorted by conversion rate.</p>
+                </div>
+
+                <table class="heatmap-table" id="heatmap-table">
+                    <thead>
+                        <tr>
+                            <th>Archetype Segment</th>
+                            <th style="text-align: right;">Population</th>
+                            <th style="text-align: right;">Exposure Rate</th>
+                            <th style="text-align: right;">Engage Rate</th>
+                            <th style="text-align: right;">Act Rate</th>
+                            <th style="text-align: right;">Share Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody id="heatmap-tbody">
+                        <!-- Populated dynamically -->
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- 3) Strategic Insights -->
+            <div class="insights-card">
+                <h3 id="insights-heading">Defensive Recommendations</h3>
+                <div class="insights-list" id="insights-list">
+                    <!-- Populated dynamically -->
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <!-- COMPARE TAB SECTION -->
+    <div id="view-comp-wrap" class="compare-section">
+        <div class="card-header-line">
+            <h2>Comparative Monte Carlo Evaluation</h2>
+            <span class="mono">20 Randomized Seeds (N=60 People)</span>
+        </div>
+
+        <div class="compare-banner" id="compare-banner">
+            <h3 id="compare-winner-banner">Intervention B outperformed by 38.2%</h3>
+            <p id="compare-summary-banner">Relative difference between candidates under identical topological and behavioral assumptions.</p>
+        </div>
+
+        <div class="form-group">
+            <label for="compare-base-message">Message Under Evaluation</label>
+            <textarea id="compare-base-message" maxlength="500">URGENT: Your electricity connection will be cut tonight at 9:30 PM due to unpaid balance. Pay immediately via link: http://bit.ly/quick-bill-pay</textarea>
+        </div>
+
+        <div class="compare-inputs-grid">
+            <div class="form-group">
+                <label for="compare-inv-a">Candidate A (e.g. Vague Warning or Baseline)</label>
+                <textarea id="compare-inv-a" style="min-height: 90px;">Be careful with online payment messages and verify claims.</textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="compare-inv-b">Candidate B (e.g. Specific Institutional Advisory)</label>
+                <textarea id="compare-inv-b" style="min-height: 90px;">Official State Electricity Board Notice: DISCOM never disconnects electricity without a 15-day formal written letter. Never pay via SMS links. Verify bill at https://discom.gov.in or call 1912.</textarea>
+            </div>
+        </div>
+
+        <button class="btn-primary" id="btn-run-compare" onclick="runComparison()">
+            <span id="btn-run-compare-text">Run 20x Monte Carlo Comparison</span>
+        </button>
+
+        <div class="compare-sidebyside-results" id="compare-results-box" style="display: none;">
+            <div class="candidate-result-card" id="card-candidate-a">
+                <h4>Candidate A</h4>
+                <div class="mono" style="margin-bottom: 0.5rem; font-size: 0.85rem;" id="cand-a-acts">Acts: 0.0 ± 0.0</div>
+                <div class="range-bar-wrap">
+                    <div class="range-bar-title">
+                        <span>P10 — P90 Range</span>
+                        <span id="cand-a-p-range">0.0 — 0.0</span>
+                    </div>
+                    <div class="range-bar-track">
+                        <div class="range-bar-fill" id="cand-a-bar"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="candidate-result-card" id="card-candidate-b">
+                <h4>Candidate B</h4>
+                <div class="mono" style="margin-bottom: 0.5rem; font-size: 0.85rem;" id="cand-b-acts">Acts: 0.0 ± 0.0</div>
+                <div class="range-bar-wrap">
+                    <div class="range-bar-title">
+                        <span>P10 — P90 Range</span>
+                        <span id="cand-b-p-range">0.0 — 0.0</span>
+                    </div>
+                    <div class="range-bar-track">
+                        <div class="range-bar-fill" id="cand-b-bar" style="background: var(--node-green);"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="compare-footer-note">
+            Relative comparison under identical assumptions across 20 synthetic population seeds.
+        </div>
+    </div>
+
+    <!-- 5) Explain This Result Collapsible -->
+    <details class="explain-drawer">
+        <summary>
+            <span>Explain this result & simulation assumptions</span>
+            <span class="mono" style="font-size: 0.78rem; color: var(--ink-muted);">+ Methodology</span>
+        </summary>
+        <div class="explain-content">
+            <div class="explain-block">
+                <h5>Synthetic Population Modeling</h5>
+                <p>Audience cohorts are sampled from curated behavioral archetypes with Gaussian jitter applied to traits (attention, skepticism, digital literacy, language barriers). Each agent possesses personalized conversion thresholds and social connectivity.</p>
+            </div>
+            <div class="explain-block">
+                <h5>Network Topology & Channel Physics</h5>
+                <p>The network is synthesized using homophily clustering and family cliques (3–5 nodes) with high-degree community hubs. Channels modulate transmission: WhatsApp features small-world clustering, SMS uses 1-to-1 spread, Social Feed acts via hub broadcasts, and Call permits zero forwarding.</p>
+            </div>
+            <div class="explain-block">
+                <h5>Hybrid Reaction Engine</h5>
+                <p>Segment responses combine local Qwen2.5-VL LLM reasoning (60%) with deterministic domain logit rules (40%). The model strictly enforces behavioral axioms: action &le; engagement &le; notice.</p>
+            </div>
+            <div class="explain-block">
+                <h5>Community Immunity & Interventions</h5>
+                <p>Vigilant agents who report suspicious messages establish localized community immunity, reducing downstream belief among neighbors. Defensive advisories attenuate victim conversion proportionally to institutional clarity and trust.</p>
+            </div>
+    </details>
+
+    <!-- Visible 'Responsible Use' Footer Note -->
+    <footer class="responsible-use-footer" role="contentinfo">
+        <div class="responsible-use-footer-header">
+            <h4>Responsible Use Policy</h4>
+            <span class="responsible-use-badge">Standards &amp; Research Ethics</span>
+        </div>
+        <p id="responsible-use-note-text">
+            Responsible Use Notice: Persona is an analytical research and defense tool designed to evaluate communication vulnerabilities and test defensive counter-messaging. It strictly prohibits the generation, optimization, or assistance in creating harmful, fraudulent, or deceptive messages. All simulation outputs reflect synthetic behavioral approximations under specified modeling assumptions and should not be interpreted as absolute real-world forecasts or deterministic predictions.
+        </p>
+    </footer>
+
+</div>
+
+<!-- Hover Tooltip -->
+<div class="d3-tooltip" id="d3-tooltip">
+    <div class="tt-name" id="tt-name">Person Name</div>
+    <div class="tt-arch" id="tt-arch">Archetype</div>
+    <div class="tt-state" id="tt-state">State: Unaware</div>
+    <div class="tt-reason" id="tt-reason">Reasoning...</div>
+</div>
+
+<script>
+/* ==========================================================================
+   Persona Frontend Application Logic
+   ========================================================================== */
+
+const API_BASE = "";
+
+// Global State
+let packsData = {};
+let presetsData = {};
+let currentResult = null;
+let currentSimulationData = null;
+let isSimulating = false;
+let currentRuntimeMode = "demo"; // 'demo' (offline cache) or 'live' (Ollama)
+let precomputedBundle = null;
+let lastFailedAction = null;
+
+// Recent Runs State (In-Memory, max 10, newest first)
+let recentRuns = [];
+let activeRunId = null;
+
+// D3 Force Simulation State
+let simulation = null;
+let d3Svg = null;
+let gContainer = null;
+let nodeElements = null;
+let edgeElements = null;
+let graphNodes = [];
+let graphLinks = [];
+let infectionEdges = [];
+let currentWaveIdx = 0;
+let maxWaveIdx = 0;
+let isPlaying = false;
+let playInterval = null;
+let animationSpeedMs = 1200;
+
+// Initialize on DOM Ready
+document.addEventListener("DOMContentLoaded", async () => {
+    initCharCounter();
+    renderRecentRunsStrip();
+    await loadPrecomputedBundle();
+    await checkHealth();
+    await loadPacks();
+    await loadPresets();
+    initD3Canvas();
+    setRuntimeMode("demo"); // Default to instant offline demo mode
+});
+
+// Runtime Mode Management
+function setRuntimeMode(mode) {
+    currentRuntimeMode = mode;
+    const btnDemo = document.getElementById("btn-mode-demo");
+    const btnLive = document.getElementById("btn-mode-live");
+    const badge = document.getElementById("active-mode-badge");
+    const badgeDot = document.getElementById("mode-badge-dot");
+    const badgeText = document.getElementById("mode-badge-text");
+    const statusText = document.getElementById("system-status-text");
+
+    if (mode === "demo") {
+        btnDemo.classList.add("active");
+        btnLive.classList.remove("active");
+        badge.className = "mode-indicator-badge demo-mode-active";
+        badgeDot.style.backgroundColor = "var(--node-blue)";
+        badgeDot.classList.remove("pulsing");
+        badgeText.textContent = "DEMO (OFFLINE CACHE)";
+        statusText.textContent = "Offline Demo Cache Active (<5s response)";
+    } else {
+        btnLive.classList.add("active");
+        btnDemo.classList.remove("active");
+        badge.className = "mode-indicator-badge live-mode-active";
+        badgeDot.style.backgroundColor = "var(--node-green)";
+        badgeDot.classList.add("pulsing");
+        badgeText.textContent = "LIVE (OLLAMA)";
+        statusText.textContent = "Live Ollama Mode Active";
+    }
+}
+
+// Error Banner Actions
+function showErrorBanner(title, message, retryFn) {
+    const banner = document.getElementById("error-banner");
+    document.getElementById("error-banner-title").textContent = title || "Execution Error";
+    document.getElementById("error-banner-msg").textContent = message || "An unexpected error occurred.";
+    lastFailedAction = retryFn || null;
+    banner.classList.add("visible");
+}
+
+function dismissErrorBanner() {
+    document.getElementById("error-banner").classList.remove("visible");
+}
+
+function retryLastAction() {
+    dismissErrorBanner();
+    if (typeof lastFailedAction === "function") {
+        lastFailedAction();
+    }
+}
+
+function switchToDemoMode() {
+    setRuntimeMode("demo");
+    dismissErrorBanner();
+    const simTab = document.getElementById("tab-btn-sim");
+    if (simTab.classList.contains("active")) {
+        startSimulation();
+    } else {
+        runComparison();
+    }
+}
+
+// Load Precomputed Cache Bundle
+async function loadPrecomputedBundle() {
+    try {
+        // Try local precomputed.json first
+        const resp = await fetch("precomputed.json");
+        if (resp.ok) {
+            precomputedBundle = await resp.json();
+            console.log(`Loaded precomputed bundle with ${precomputedBundle.simulations_count} cached simulations.`);
+            return;
+        }
+    } catch (e) {
+        // Fall back to server endpoint
+        try {
+            const resp2 = await fetch(`${API_BASE}/demo/precomputed`);
+            if (resp2.ok) {
+                precomputedBundle = await resp2.json();
+                console.log(`Loaded precomputed bundle from backend.`);
+            }
+        } catch (e2) {
+            console.warn("Could not load precomputed bundle:", e2);
+        }
+    }
+}
+
+// Character Counter
+function initCharCounter() {
+    const input = document.getElementById("message-input");
+    const counter = document.getElementById("char-counter");
+    input.addEventListener("input", () => {
+        const len = input.value.length;
+        counter.textContent = `${len} / 500`;
+        counter.classList.toggle("limit-near", len > 460);
+    });
+    counter.textContent = `${input.value.length} / 500`;
+}
+
+// Health Check
+async function checkHealth() {
+    const dot = document.getElementById("system-status-dot");
+    const statusText = document.getElementById("system-status-text");
+    const modelText = document.getElementById("system-model-text");
+
+    try {
+        const resp = await fetch(`${API_BASE}/health`);
+        if (resp.ok) {
+            const data = await resp.json();
+            dot.style.backgroundColor = "var(--node-green)";
+            statusText.textContent = data.ollama?.connected ? "Online (Ollama Connected)" : "Online (Rule Mode)";
+            modelText.textContent = data.ollama?.configured_model || "qwen2.5vl:7b";
+        } else {
+            dot.style.backgroundColor = "var(--node-orange)";
+            statusText.textContent = "API Limited";
+        }
+    } catch (e) {
+        dot.style.backgroundColor = "var(--node-red)";
+        statusText.textContent = "Offline";
+    }
+}
+
+// Load Domain Packs
+async function loadPacks() {
+    try {
+        const resp = await fetch(`${API_BASE}/packs`);
+        if (resp.ok) {
+            const packs = await resp.json();
+            packsData = {};
+            packs.forEach(p => { packsData[p.id] = p; });
+            populateSampleChips();
+        }
+    } catch (e) {
+        console.error("Failed to fetch packs:", e);
+    }
+}
+
+// Load Audience Presets
+async function loadPresets() {
+    try {
+        const resp = await fetch(`${API_BASE}/presets`);
+        if (resp.ok) {
+            presetsData = await resp.json();
+            const select = document.getElementById("preset-select");
+            select.innerHTML = "";
+            
+            Object.keys(presetsData).forEach(presetId => {
+                const opt = document.createElement("option");
+                opt.value = presetId;
+                opt.textContent = formatTitle(presetId);
+                select.appendChild(opt);
+            });
+
+            // Add Custom Audience option
+            const customOpt = document.createElement("option");
+            customOpt.value = "custom";
+            customOpt.textContent = "+ Custom Audience Description...";
+            select.appendChild(customOpt);
+        }
+    } catch (e) {
+        console.error("Failed to fetch presets:", e);
+    }
+}
+
+function onPackChange() {
+    populateSampleChips();
+    const packSelect = document.getElementById("pack-select");
+    const label = document.getElementById("current-pack-label");
+    const p = packsData[packSelect.value];
+    if (p) label.textContent = p.title;
+}
+
+function onPresetChange() {
+    const select = document.getElementById("preset-select");
+    const customBox = document.getElementById("custom-audience-box");
+    customBox.classList.toggle("visible", select.value === "custom");
+}
+
+// Populate 'Try a sample' chips
+function populateSampleChips() {
+    const packId = document.getElementById("pack-select").value;
+    const container = document.getElementById("sample-chips-container");
+    container.innerHTML = "";
+
+    const pack = packsData[packId];
+    if (!pack || !pack.samples) return;
+
+    pack.samples.forEach(sample => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = `sample-chip ${sample.kind === 'legit' ? 'legit-chip' : ''}`;
+        chip.textContent = sample.label + (sample.kind === 'legit' ? ' (legit)' : '');
+        chip.title = sample.text;
+        chip.onclick = () => {
+            const msgInput = document.getElementById("message-input");
+            msgInput.value = sample.text;
+            document.getElementById("char-counter").textContent = `${sample.text.length} / 500`;
+            // Also copy to compare base message
+            document.getElementById("compare-base-message").value = sample.text;
+        };
+        container.appendChild(chip);
+    });
+}
+
+// Switch between Simulation and Compare tabs
+function switchView(mode) {
+    const simTab = document.getElementById("tab-btn-sim");
+    const compTab = document.getElementById("tab-btn-comp");
+    const simWrap = document.getElementById("view-sim-wrap");
+    const compWrap = document.getElementById("view-comp-wrap");
+
+    if (mode === "sim") {
+        simTab.classList.add("active");
+        compTab.classList.remove("active");
+        simWrap.style.display = "block";
+        compWrap.classList.remove("active");
+    } else {
+        compTab.classList.add("active");
+        simTab.classList.remove("active");
+        simWrap.style.display = "none";
+        compWrap.classList.add("active");
+    }
+}
+
+// --------------------------------------------------------------------------
+// D3 Force Graph Initialization & Rendering
+// --------------------------------------------------------------------------
+
+function initD3Canvas() {
+    const viewport = document.getElementById("graph-viewport");
+    const svg = d3.select("#network-svg");
+    d3Svg = svg;
+
+    const width = viewport.clientWidth || 800;
+    const height = viewport.clientHeight || 480;
+
+    svg.attr("viewBox", [0, 0, width, height]);
+
+    // Zoom & Pan Behavior
+    const zoom = d3.zoom()
+        .scaleExtent([0.4, 4])
+        .on("zoom", (event) => {
+            gContainer.attr("transform", event.transform);
+        });
+
+    svg.call(zoom);
+
+    gContainer = svg.append("g").attr("class", "main-graph-group");
+
+    // Initial placeholder empty graph layout
+    renderPlaceholderGraph(width, height);
+}
+
+function renderPlaceholderGraph(width, height) {
+    gContainer.selectAll("*").remove();
+
+    // Render faint aesthetic grid
+    const dummyNodes = d3.range(75).map(i => ({
+        id: `dummy_${i}`,
+        x: width / 2 + (Math.random() - 0.5) * (width * 0.7),
+        y: height / 2 + (Math.random() - 0.5) * (height * 0.7),
+        isHub: i % 15 === 0,
+    }));
+
+    gContainer.append("g")
+        .selectAll("circle")
+        .data(dummyNodes)
+        .join("circle")
+        .attr("cx", d => d.x)
+        .attr("cy", d => d.y)
+        .attr("r", d => d.isHub ? 8 : 4.5)
+        .attr("fill", "var(--node-grey)")
+        .attr("opacity", 0.35);
+}
+
+function setupD3Simulation(networkPayload, waves, infectionEdgeList) {
+    const viewport = document.getElementById("graph-viewport");
+    const width = viewport.clientWidth || 800;
+    const height = viewport.clientHeight || 480;
+
+    d3Svg.attr("viewBox", [0, 0, width, height]);
+    gContainer.selectAll("*").remove();
+
+    graphNodes = networkPayload.nodes.map(n => ({
+        id: n.id,
+        name: n.name,
+        archetype: n.archetype || (typeof formatTitle === "function" ? formatTitle(n.archetype_id) : n.archetype_id),
+        archetype_id: n.archetype_id,
+        age: n.age,
+        area: n.area,
+        language: n.language,
+        isHub: !!(n.is_hub || n.hub),
+    }));
+
+    const nodeById = new Map(graphNodes.map(d => [d.id, d]));
+
+    const rawEdges = networkPayload.edges || networkPayload.links || [];
+    graphLinks = rawEdges
+        .filter(l => nodeById.has(l.source) && nodeById.has(l.target))
+        .map(l => ({
+            source: l.source,
+            target: l.target,
+            edge_type: l.edge_type || "peer",
+            weight: l.weight || 1,
+        }));
+
+    infectionEdges = infectionEdgeList || [];
+
+    // Force Simulation
+    if (simulation) simulation.stop();
+
+    simulation = d3.forceSimulation(graphNodes)
+        .force("link", d3.forceLink(graphLinks).id(d => d.id).distance(d => d.edge_type === "family" ? 28 : 55))
+        .force("charge", d3.forceManyBody().strength(-65))
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("collision", d3.forceCollide().radius(d => d.isHub ? 14 : 9));
+
+    // Draw Background Network Links
+    const linkGroup = gContainer.append("g").attr("class", "links-layer");
+    edgeElements = linkGroup.selectAll("line")
+        .data(graphLinks)
+        .join("line")
+        .attr("stroke", "var(--hairline)")
+        .attr("stroke-width", 0.85)
+        .attr("stroke-opacity", 0.4);
+
+    // Draw Highlighted Infection Layer
+    const infectionGroup = gContainer.append("g").attr("class", "infection-layer");
+
+    // Draw Nodes Layer
+    const nodeGroup = gContainer.append("g").attr("class", "nodes-layer");
+    nodeElements = nodeGroup.selectAll("g.node-item")
+        .data(graphNodes)
+        .join("g")
+        .attr("class", "node-item")
+        .call(dragBehavior(simulation));
+
+    // Circle representation
+    nodeElements.append("circle")
+        .attr("class", "node-shape-circle")
+        .attr("r", d => d.isHub ? 8.5 : 5.2)
+        .attr("fill", "var(--node-grey)")
+        .attr("stroke", "transparent")
+        .attr("stroke-width", 2);
+
+    // Square representation (reporters)
+    nodeElements.append("rect")
+        .attr("class", "node-shape-square")
+        .attr("width", d => d.isHub ? 15 : 10)
+        .attr("height", d => d.isHub ? 15 : 10)
+        .attr("x", d => d.isHub ? -7.5 : -5)
+        .attr("y", d => d.isHub ? -7.5 : -5)
+        .attr("fill", "transparent")
+        .attr("stroke", "var(--ink)")
+        .attr("stroke-width", 1.8)
+        .style("display", "none");
+
+    // Tooltip event handlers
+    const tooltip = document.getElementById("d3-tooltip");
+    nodeElements
+        .on("mouseenter", (event, d) => {
+            const state = getNodeStateAtWave(d.id, currentWaveIdx);
+            document.getElementById("tt-name").textContent = d.name;
+            document.getElementById("tt-arch").textContent = `${d.archetype} (${d.age}y, ${d.area})`;
+            document.getElementById("tt-state").textContent = `State: ${state.stateLabel}`;
+            document.getElementById("tt-state").style.color = state.stateColor;
+            document.getElementById("tt-reason").textContent = state.reason || "Unexposed in current wave.";
+            tooltip.style.display = "block";
+        })
+        .on("mousemove", (event) => {
+            tooltip.style.left = (event.pageX + 14) + "px";
+            tooltip.style.top = (event.pageY - 28) + "px";
+        })
+        .on("mouseleave", () => {
+            tooltip.style.display = "none";
+        });
+
+    simulation.on("tick", () => {
+        edgeElements
+            .attr("x1", d => d.source.x)
+            .attr("y1", d => d.source.y)
+            .attr("x2", d => d.target.x)
+            .attr("y2", d => d.target.y);
+
+        nodeElements.attr("transform", d => `translate(${d.x},${d.y})`);
+
+        infectionGroup.selectAll("line")
+            .attr("x1", d => nodeById.get(d.source)?.x || 0)
+            .attr("y1", d => nodeById.get(d.source)?.y || 0)
+            .attr("x2", d => nodeById.get(d.target)?.x || 0)
+            .attr("y2", d => nodeById.get(d.target)?.y || 0);
+    });
+
+    updateGraphVisuals(currentWaveIdx);
+}
+
+function dragBehavior(sim) {
+    function dragstarted(event) {
+        if (!event.active) sim.alphaTarget(0.3).restart();
+        event.subject.fx = event.subject.x;
+        event.subject.fy = event.subject.y;
+    }
+    function dragged(event) {
+        event.subject.fx = event.x;
+        event.subject.fy = event.y;
+    }
+    function dragended(event) {
+        if (!event.active) sim.alphaTarget(0);
+        event.subject.fx = null;
+        event.subject.fy = null;
+    }
+    return d3.drag()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended);
+}
+
+// Resolve Node state at wave index
+function getNodeStateAtWave(personId, waveIdx) {
+    if (!currentSimulationData) return { stateLabel: "Unaware", stateColor: "var(--node-grey)" };
+
+    const waves = currentSimulationData.waves || [];
+    let isExposed = false;
+    let waveExposed = -1;
+
+    for (let w = 0; w <= waveIdx && w < waves.length; w++) {
+        if (waves[w].reached_ids && waves[w].reached_ids.includes(personId)) {
+            isExposed = true;
+            waveExposed = w;
+            break;
+        }
+    }
+
+    if (!isExposed) {
+        return {
+            stateLabel: "Unaware",
+            stateColor: "var(--node-grey)",
+            reason: "Not reached by cascade",
+        };
+    }
+
+    // Get final sampled state
+    const finalState = (currentSimulationData.node_states && currentSimulationData.node_states[personId]) || "notice only";
+    
+    // Look up reason
+    const node = graphNodes.find(n => n.id === personId);
+    const archId = node?.archetype_id;
+    const reaction = currentResult?.reactions?.[personId] || (archId ? currentResult?.reactions?.[archId] : null) || {};
+    const reason = reaction.reason || "Reacted based on trait profile.";
+
+    const colors = {
+        "ignore": "var(--node-grey)",
+        "notice only": "var(--node-light-blue)",
+        "engage": "var(--node-blue)",
+        "act": "var(--node-orange)",
+        "share": "var(--node-blue)",
+        "report": "var(--ink)",
+    };
+
+    return {
+        stateLabel: finalState,
+        stateColor: colors[finalState] || "var(--node-grey)",
+        reason: reason,
+        isSharer: finalState === "share",
+        isReporter: finalState === "report",
+    };
+}
+
+// Update D3 visuals for specific wave index
+function updateGraphVisuals(waveIdx) {
+    if (!nodeElements) return;
+
+    nodeElements.each(function(d) {
+        const g = d3.select(this);
+        const st = getNodeStateAtWave(d.id, waveIdx);
+        const circle = g.select(".node-shape-circle");
+        const square = g.select(".node-shape-square");
+
+        if (st.isReporter) {
+            circle.style("display", "none");
+            square.style("display", "block");
+        } else {
+            circle.style("display", "block");
+            square.style("display", "none");
+
+            circle
+                .attr("fill", st.stateColor)
+                .attr("stroke", st.isSharer ? "var(--ink)" : "transparent")
+                .attr("stroke-width", st.isSharer ? 2.4 : 0)
+                .attr("opacity", st.stateLabel === "Unaware" ? 0.35 : 1);
+        }
+    });
+
+    // Update active infection lines
+    const infectionLayer = gContainer.select(".infection-layer");
+    infectionLayer.selectAll("*").remove();
+
+    if (currentSimulationData?.edges && simulation) {
+        const activeInfectionEdges = currentSimulationData.edges.filter(e => e.wave <= waveIdx);
+        const nodeById = new Map(graphNodes.map(d => [d.id, d]));
+
+        infectionLayer.selectAll("line")
+            .data(activeInfectionEdges)
+            .join("line")
+            .attr("x1", d => nodeById.get(d.source)?.x || 0)
+            .attr("y1", d => nodeById.get(d.source)?.y || 0)
+            .attr("x2", d => nodeById.get(d.target)?.x || 0)
+            .attr("y2", d => nodeById.get(d.target)?.y || 0)
+            .attr("stroke", "var(--node-orange)")
+            .attr("stroke-width", 1.8)
+            .attr("stroke-opacity", 0.85);
+    }
+}
+
+// --------------------------------------------------------------------------
+// Wave Animation Controls
+// --------------------------------------------------------------------------
+
+function onWaveSliderInput(val) {
+    currentWaveIdx = parseInt(val, 10);
+    document.getElementById("wave-slider-label").textContent = `Wave ${currentWaveIdx}`;
+    updateGraphVisuals(currentWaveIdx);
+}
+
+function onSpeedChange(val) {
+    animationSpeedMs = parseInt(val, 10);
+    if (isPlaying) {
+        clearInterval(playInterval);
+        playInterval = setInterval(stepWaveForward, animationSpeedMs);
+    }
+}
+
+function togglePlayPause() {
+    isPlaying = !isPlaying;
+    const btn = document.getElementById("btn-play-pause");
+    btn.textContent = isPlaying ? "Pause" : "Play";
+
+    if (isPlaying) {
+        if (currentWaveIdx >= maxWaveIdx) currentWaveIdx = 0;
+        playInterval = setInterval(stepWaveForward, animationSpeedMs);
+    } else {
+        clearInterval(playInterval);
+    }
+}
+
+function stepWaveForward() {
+    if (currentWaveIdx < maxWaveIdx) {
+        currentWaveIdx++;
+        document.getElementById("wave-slider").value = currentWaveIdx;
+        document.getElementById("wave-slider-label").textContent = `Wave ${currentWaveIdx}`;
+        updateGraphVisuals(currentWaveIdx);
+    } else {
+        isPlaying = false;
+        clearInterval(playInterval);
+        document.getElementById("btn-play-pause").textContent = "Play";
+    }
+}
+
+function resetWaveAnimation() {
+    if (playInterval) clearInterval(playInterval);
+    isPlaying = false;
+    document.getElementById("btn-play-pause").textContent = "Play";
+    currentWaveIdx = 0;
+    document.getElementById("wave-slider").value = 0;
+    document.getElementById("wave-slider-label").textContent = "Wave 0";
+    updateGraphVisuals(0);
+}
+
+// --------------------------------------------------------------------------
+// Start Simulation & SSE Progress Pipeline
+// --------------------------------------------------------------------------
+
+async function startSimulation() {
+    if (isSimulating) return;
+
+    const message = document.getElementById("message-input").value.trim();
+    if (!message) {
+        alert("Please enter a message to simulate.");
+        return;
+    }
+
+    const packId = document.getElementById("pack-select").value;
+    const presetSelect = document.getElementById("preset-select").value;
+    const channel = document.getElementById("channel-select").value;
+    const intervention = document.getElementById("intervention-input").value.trim();
+
+    const payload = {
+        message: message,
+        pack_id: packId,
+        channel: channel,
+        intervention: intervention || null,
+        n_people: 120,
+        demo_mode: currentRuntimeMode === "demo",
+        use_llm: currentRuntimeMode === "live",
+    };
+
+    if (presetSelect === "custom") {
+        const customDesc = document.getElementById("custom-audience-input").value.trim();
+        if (!customDesc) {
+            alert("Please enter a custom audience description or choose a preset.");
+            return;
+        }
+        payload.audience_description = customDesc;
+    } else {
+        payload.audience_preset = presetSelect;
+    }
+
+    // UI Updates
+    isSimulating = true;
+    const runBtn = document.getElementById("btn-run-sim");
+    const runBtnText = document.getElementById("btn-run-sim-text");
+    runBtn.disabled = true;
+    runBtnText.textContent = "Simulating Spread...";
+
+    const stagePulse = document.getElementById("stage-pulse");
+    const stageText = document.getElementById("stage-text");
+    stagePulse.classList.add("active");
+    stageText.textContent = "Initiating pipeline job...";
+
+    document.getElementById("status-degraded-tag").classList.remove("visible");
+    document.getElementById("results-section").style.display = "none";
+    dismissErrorBanner();
+
+    // 1. Fast Offline Demo Mode: execute instantly using precomputed bundle
+    if (currentRuntimeMode === "demo") {
+        stageText.textContent = "Reading message (Demo Cache)...";
+
+        let match = null;
+        if (precomputedBundle && precomputedBundle.simulations) {
+            const sims = precomputedBundle.simulations;
+            const targetPreset = presetSelect === "custom" ? "urban_seniors" : presetSelect;
+            
+            // Exact match
+            for (const key in sims) {
+                const s = sims[key];
+                if (s.pack_id === packId && s.audience_preset === targetPreset && s.message.trim() === message) {
+                    match = s;
+                    break;
+                }
+            }
+            // Match by pack and preset
+            if (!match) {
+                for (const key in sims) {
+                    const s = sims[key];
+                    if (s.pack_id === packId && s.audience_preset === targetPreset) {
+                        match = s;
+                        break;
+                    }
+                }
+            }
+            // Match by pack
+            if (!match) {
+                for (const key in sims) {
+                    if (sims[key].pack_id === packId) {
+                        match = sims[key];
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (match) {
+            // Smooth micro-stage progress for realistic UX
+            setTimeout(() => { stageText.textContent = "Synthesizing social network (120 nodes)..."; }, 60);
+            setTimeout(() => { stageText.textContent = "Simulating cascade spread..."; }, 120);
+            setTimeout(() => { stageText.textContent = "Scoring R0 & defense insights..."; }, 180);
+            setTimeout(() => {
+                stagePulse.classList.remove("active");
+                stageText.textContent = "Simulation completed (Offline Demo Cache).";
+                runBtn.disabled = false;
+                runBtnText.textContent = "Run Simulation";
+                isSimulating = false;
+                handleSimulationComplete(match);
+            }, 250);
+            return;
+        }
+    }
+
+    // 2. Live Mode (or fallback network request)
+    try {
+        const initResp = await fetch(`${API_BASE}/simulate`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        if (!initResp.ok) {
+            const err = await initResp.json();
+            throw new Error(err.detail || "Simulation initiation failed.");
+        }
+
+        const initData = await initResp.json();
+
+        // If returned completed immediately (backend demo cache)
+        if (initData.status === "completed" && initData.result) {
+            stagePulse.classList.remove("active");
+            stageText.textContent = "Simulation completed (Cached).";
+            runBtn.disabled = false;
+            runBtnText.textContent = "Run Simulation";
+            isSimulating = false;
+            handleSimulationComplete(initData.result);
+            return;
+        }
+
+        const jobId = initData.job_id;
+        // Connect to SSE Stream
+        connectSSEStream(jobId);
+
+    } catch (err) {
+        console.error("Simulation error:", err);
+        stagePulse.classList.remove("active");
+        stageText.textContent = `Error: ${err.message}`;
+        runBtn.disabled = false;
+        runBtnText.textContent = "Run Simulation";
+        isSimulating = false;
+
+        showErrorBanner(
+            "Live Simulation Failed",
+            `Could not complete simulation with Ollama (${err.message}). You can retry or switch to offline Demo mode.`,
+            startSimulation
+        );
+    }
+}
+
+function connectSSEStream(jobId) {
+    const stagePulse = document.getElementById("stage-pulse");
+    const stageText = document.getElementById("stage-text");
+    const eventSource = new EventSource(`${API_BASE}/stream/${jobId}`);
+
+    eventSource.addEventListener("progress", (event) => {
+        try {
+            const data = JSON.parse(event.data);
+            stageText.textContent = data.stage + (data.detail ? ` — ${data.detail}` : "");
+            if (data.degraded) {
+                document.getElementById("status-degraded-tag").classList.add("visible");
+            }
+        } catch (e) {}
+    });
+
+    eventSource.addEventListener("complete", (event) => {
+        eventSource.close();
+        stagePulse.classList.remove("active");
+        stageText.textContent = "Simulation completed.";
+
+        const runBtn = document.getElementById("btn-run-sim");
+        const runBtnText = document.getElementById("btn-run-sim-text");
+        runBtn.disabled = false;
+        runBtnText.textContent = "Run Simulation";
+        isSimulating = false;
+
+        try {
+            const result = JSON.parse(event.data);
+            handleSimulationComplete(result);
+        } catch (e) {
+            console.error("Failed to parse complete payload:", e);
+        }
+    });
+
+    eventSource.addEventListener("error", (event) => {
+        eventSource.close();
+        stagePulse.classList.remove("active");
+        stageText.textContent = "Simulation interrupted or failed.";
+
+        const runBtn = document.getElementById("btn-run-sim");
+        const runBtnText = document.getElementById("btn-run-sim-text");
+        runBtn.disabled = false;
+        runBtnText.textContent = "Run Simulation";
+        isSimulating = false;
+
+        showErrorBanner(
+            "Stream Connection Lost",
+            "The real-time simulation stream was interrupted or timed out. Retry or switch to Demo mode.",
+            startSimulation
+        );
+    });
+}
+
+function handleSimulationComplete(result, isHistoryRecall = false) {
+    currentResult = result;
+    currentSimulationData = result.simulation;
+
+    if (result.degraded) {
+        document.getElementById("status-degraded-tag").classList.add("visible");
+    } else {
+        document.getElementById("status-degraded-tag").classList.remove("visible");
+    }
+
+    // Configure Wave Timeline Controls
+    const waves = currentSimulationData?.waves || [];
+    maxWaveIdx = Math.max(0, waves.length - 1);
+    currentWaveIdx = 0;
+
+    const slider = document.getElementById("wave-slider");
+    slider.max = maxWaveIdx;
+    slider.value = 0;
+    document.getElementById("wave-slider-label").textContent = "Wave 0";
+
+    // Build & Render Force Simulation Graph
+    if (result.network_payload) {
+        setupD3Simulation(result.network_payload, waves, currentSimulationData.edges);
+    }
+
+    // Render Metrics, Verdict, Heatmap, and Insights
+    renderVerdictCard(result);
+    renderDemographicHeatmap(result);
+    renderStrategicInsights(result);
+
+    document.getElementById("results-section").style.display = "flex";
+
+    // Auto-play cascade animation once
+    if (playInterval) clearInterval(playInterval);
+    isPlaying = false;
+    togglePlayPause();
+
+    // Push fresh simulation to Recent runs strip
+    if (!isHistoryRecall) {
+        addRecentRun(result);
+    }
+}
+
+// --------------------------------------------------------------------------
+// Recent Runs In-Memory Management
+// --------------------------------------------------------------------------
+
+function escapeHtml(str) {
+    if (str === null || str === undefined) return "";
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+}
+
+function addRecentRun(result) {
+    if (!result) return;
+
+    const runId = result.job_id || result.id || ("run_" + Date.now() + "_" + Math.floor(Math.random() * 1000));
+    const fullMsg = result.message || document.getElementById("message-input")?.value.trim() || "";
+    const msgSnippet = fullMsg.slice(0, 40);
+    const pack = result.pack_id || document.getElementById("pack-select")?.value || "scam_fraud";
+    const verdictLabel = result.scoring?.verdict || "Evaluated";
+
+    // Ensure result object carries full metadata
+    result.id = runId;
+    result.message = fullMsg;
+    result.pack_id = pack;
+
+    const runItem = {
+        id: runId,
+        message: msgSnippet,
+        pack: pack,
+        "verdict label": verdictLabel,
+        "full result JSON": result,
+        // Aliases for convenience
+        verdict: verdictLabel,
+        verdictLabel: verdictLabel,
+        fullResult: result,
+        result: result
+    };
+
+    // Prepend (newest first) and cap at 10
+    recentRuns.unshift(runItem);
+    if (recentRuns.length > 10) {
+        recentRuns.length = 10;
+    }
+
+    activeRunId = runId;
+    renderRecentRunsStrip();
+}
+
+function renderRecentRunsStrip() {
+    const chipsContainer = document.getElementById("recent-runs-chips");
+    const countEl = document.getElementById("recent-runs-count");
+    const clearBtn = document.getElementById("btn-clear-runs");
+    if (!chipsContainer) return;
+
+    if (countEl) {
+        countEl.textContent = `(${recentRuns.length})`;
+    }
+
+    if (recentRuns.length === 0) {
+        if (clearBtn) clearBtn.style.display = "none";
+        chipsContainer.innerHTML = '<span class="recent-runs-empty mono">No recent runs yet. Run a simulation to log runs here.</span>';
+        return;
+    }
+
+    if (clearBtn) {
+        clearBtn.style.display = "inline-block";
+    }
+
+    chipsContainer.innerHTML = "";
+    recentRuns.forEach((run) => {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        const isActive = activeRunId === run.id;
+
+        const fullRes = run["full result JSON"] || run.result;
+        const packId = run.pack || fullRes?.pack_id || "";
+        const packInfo = (typeof packsData !== "undefined" && packsData[packId]) ? packsData[packId] : {};
+        const valence = packInfo.valence || "harmful";
+        const valenceClass = valence === "harmful" ? "harmful-verdict" : "beneficial-verdict";
+
+        chip.className = `run-chip ${valenceClass} ${isActive ? "active" : ""}`;
+        chip.title = `Verdict: ${run["verdict label"]} | Pack: ${run.pack}\n"${run.message}"`;
+        chip.setAttribute("aria-label", `Run ${run.id}: ${run["verdict label"]} - ${run.message}`);
+
+        const verdictText = run["verdict label"] || run.verdict || "Evaluated";
+        const msgText = run.message || "";
+        const packText = run.pack || "";
+
+        chip.innerHTML = `
+            <span class="run-chip-verdict mono">${escapeHtml(verdictText)}</span>
+            <span class="run-chip-pack mono">${escapeHtml(packText)}</span>
+            <span class="run-chip-msg">"${escapeHtml(msgText)}"</span>
+        `;
+
+        chip.onclick = () => selectRecentRun(run.id);
+        chipsContainer.appendChild(chip);
+    });
+}
+
+function selectRecentRun(runId) {
+    const run = recentRuns.find(r => r.id === runId);
+    if (!run) return;
+
+    activeRunId = runId;
+    const storedResult = run["full result JSON"] || run.fullResult || run.result;
+    if (!storedResult) return;
+
+    // Synchronize UI inputs to recalled run without triggering API calls
+    if (storedResult.message) {
+        const msgInput = document.getElementById("message-input");
+        if (msgInput) {
+            msgInput.value = storedResult.message;
+            if (typeof updateCharCount === "function") updateCharCount();
+        }
+    }
+    if (storedResult.pack_id) {
+        const packSel = document.getElementById("pack-select");
+        if (packSel) {
+            packSel.value = storedResult.pack_id;
+            if (typeof updatePackGuidance === "function") updatePackGuidance();
+        }
+    }
+    if (storedResult.audience_preset) {
+        const audSel = document.getElementById("preset-select") || document.getElementById("audience-select");
+        if (audSel) audSel.value = storedResult.audience_preset;
+    }
+
+    const stageText = document.getElementById("stage-text");
+    if (stageText) {
+        stageText.textContent = `Viewing cached run (${run["verdict label"] || run.verdict}).`;
+    }
+
+    // Re-render graph, verdict card and heatmap from stored result without API call
+    handleSimulationComplete(storedResult, true);
+
+    // Update active chip styling
+    renderRecentRunsStrip();
+}
+
+function clearRecentRuns() {
+    recentRuns = [];
+    activeRunId = null;
+    renderRecentRunsStrip();
+}
+
+// --------------------------------------------------------------------------
+// Verdict Card & Stat Blocks
+// --------------------------------------------------------------------------
+
+function renderVerdictCard(result) {
+    const scoring = result.scoring || {};
+    const packId = result.pack_id || "scam_fraud";
+    const pack = packsData[packId] || {};
+    const valence = pack.valence || "harmful";
+
+    // Headline
+    const headline = document.getElementById("verdict-label");
+    headline.textContent = (scoring.verdict || "Evaluated") + ".";
+    headline.className = "verdict-headline";
+
+    if (valence === "harmful") {
+        if (scoring.verdict_tier >= 2) headline.classList.add("harmful-outbreak");
+        else headline.classList.add("harmful-contained");
+    } else {
+        if (scoring.verdict_tier >= 2) headline.classList.add("beneficial-breakout");
+    }
+
+    // Summary
+    const summary = document.getElementById("verdict-summary");
+    const reachPct = scoring.reach_percent || 0;
+    const actCount = scoring.act_count || 0;
+    const actPct = scoring.act_percent || 0;
+    const r0 = scoring.r0 || 0;
+
+    if (valence === "harmful") {
+        summary.textContent = `Exploited ${actCount} victims (${actPct}%) and penetrated ${reachPct}% of the audience across ${scoring.waves_reached} waves with a reproduction rate R0 of ${r0.toFixed(2)}.`;
+    } else {
+        summary.textContent = `Achieved ${actCount} positive actions (${actPct}%) with an overall audience reach of ${reachPct}% and viral velocity R0 of ${r0.toFixed(2)}.`;
+    }
+
+    // Stat 1: Reach %
+    document.getElementById("stat-reach-val").textContent = `${reachPct.toFixed(1)}%`;
+    document.getElementById("stat-reach-bar").style.width = `${Math.min(100, reachPct)}%`;
+
+    // Stat 2: Acted
+    const actLabel = document.getElementById("stat-act-label");
+    actLabel.textContent = valence === "harmful" ? "Victims / Acted" : "Action Converted";
+    document.getElementById("stat-act-val").textContent = `${actCount} (${actPct.toFixed(1)}%)`;
+    document.getElementById("stat-act-bar").style.width = `${Math.min(100, actPct)}%`;
+
+    // Stat 3: R0
+    document.getElementById("stat-r0-val").textContent = r0.toFixed(2);
+    const r0BarPct = Math.min(100, (r0 / 2.0) * 100);
+    document.getElementById("stat-r0-bar").style.width = `${r0BarPct}%`;
+
+    // Stat 4: Waves
+    const wavesCount = scoring.waves_reached || 0;
+    const timeToPeak = scoring.time_to_peak ?? 0;
+    document.getElementById("stat-waves-val").textContent = `${wavesCount}w (Pk ${timeToPeak})`;
+    document.getElementById("stat-waves-bar").style.width = `${Math.min(100, (wavesCount / 6) * 100)}%`;
+
+    // Weakest Group & Trigger
+    const weakestGroup = scoring.weakest_group || {};
+    const weakestText = document.getElementById("weakest-signal-text");
+    if (weakestGroup.group) {
+        weakestText.textContent = `${formatTitle(weakestGroup.group)} (${(weakestGroup.act_rate * 100).toFixed(1)}% act rate)`;
+    } else {
+        weakestText.textContent = "Homogeneous spread";
+    }
+
+    const triggerText = document.getElementById("primary-trigger-text");
+    triggerText.textContent = formatTitle(scoring.strongest_trigger || "None");
+}
+
+// --------------------------------------------------------------------------
+// Demographic Heatmap
+// --------------------------------------------------------------------------
+
+function renderDemographicHeatmap(result) {
+    const tbody = document.getElementById("heatmap-tbody");
+    tbody.innerHTML = "";
+
+    const groupStats = result.scoring?.group_stats?.by_archetype || {};
+    const pack = packsData[result.pack_id] || {};
+    const isHarmful = pack.valence === "harmful";
+
+    // Sort rows by act_rate descending
+    const rows = Object.entries(groupStats).map(([archId, data]) => ({
+        id: archId,
+        ...data,
+    }));
+
+    rows.sort((a, b) => b.act_rate - a.act_rate);
+
+    rows.forEach(r => {
+        const tr = document.createElement("tr");
+
+        // Color cell background based on rate: cream to orange (harmful) or cream to blue (beneficial)
+        const actBg = isHarmful 
+            ? `rgba(232, 89, 12, ${Math.min(0.85, r.act_rate * 1.2 + 0.05)})`
+            : `rgba(47, 75, 216, ${Math.min(0.85, r.act_rate * 1.2 + 0.05)})`;
+        
+        const actColor = r.act_rate > 0.45 ? "#fff" : "var(--ink)";
+
+        const expRate = (r.exposure_rate * 100).toFixed(0);
+        const actRate = (r.act_rate * 100).toFixed(1);
+        const actCount = r.acts || 0;
+        const reachedCount = r.reached || 0;
+        const totalCount = r.count || 0;
+        const shareCount = r.shares || 0;
+
+        tr.innerHTML = `
+            <td class="arch-cell">${formatTitle(r.id)}</td>
+            <td style="text-align: right; color: var(--ink-muted);">${totalCount}</td>
+            <td class="heat-cell" style="background: rgba(0,0,0,0.03);" title="Exposed: ${reachedCount}/${totalCount}">
+                ${expRate}%
+            </td>
+            <td class="heat-cell" style="background: rgba(0,0,0,0.04);">
+                ${((reachedCount / Math.max(1, totalCount)) * 0.7 * 100).toFixed(0)}%
+            </td>
+            <td class="heat-cell" style="background: ${actBg}; color: ${actColor}; font-weight: 700;" title="Conversions: ${actCount}/${reachedCount}">
+                ${actRate}%
+            </td>
+            <td class="heat-cell" style="background: rgba(0,0,0,0.03);" title="Forwards: ${shareCount}">
+                ${((shareCount / Math.max(1, reachedCount)) * 100).toFixed(1)}%
+            </td>
+        `;
+
+        tbody.appendChild(tr);
+    });
+}
+
+// --------------------------------------------------------------------------
+// Strategic Insights List
+// --------------------------------------------------------------------------
+
+function renderStrategicInsights(result) {
+    const list = document.getElementById("insights-list");
+    list.innerHTML = "";
+
+    const insights = result.insights || {};
+    const heading = document.getElementById("insights-heading");
+    heading.textContent = insights.mode === "defensive" ? "Defensive Recommendations" : "Campaign Optimization Tips";
+
+    const recommendations = insights.recommendations || [];
+    const trigger = insights.strongest_trigger || "urgency";
+    const weakest = insights.weakest_group?.group || "seniors";
+
+    recommendations.forEach((rec, idx) => {
+        const item = document.createElement("div");
+        item.className = "insight-item";
+
+        item.innerHTML = `
+            <div class="insight-tags">
+                <span class="pill-tag trigger-pill">trigger: ${trigger}</span>
+                <span class="pill-tag">cohort: ${formatTitle(weakest)}</span>
+                <span class="pill-tag">priority ${idx + 1}</span>
+            </div>
+            <div class="insight-text">${rec}</div>
+        `;
+        list.appendChild(item);
+    });
+}
+
+// --------------------------------------------------------------------------
+// Compare Tab: Monte Carlo Execution
+// --------------------------------------------------------------------------
+
+async function runComparison() {
+    const baseMsg = document.getElementById("compare-base-message").value.trim();
+    const invA = document.getElementById("compare-inv-a").value.trim();
+    const invB = document.getElementById("compare-inv-b").value.trim();
+
+    if (!baseMsg) {
+        alert("Please enter a base message.");
+        return;
+    }
+    if (!invA || !invB) {
+        alert("Please provide two interventions to compare.");
+        return;
+    }
+
+    const btn = document.getElementById("btn-run-compare");
+    const btnText = document.getElementById("btn-run-compare-text");
+    btn.disabled = true;
+    btnText.textContent = currentRuntimeMode === "demo" ? "Loading Cached Monte Carlo..." : "Running 20x Monte Carlo Seeds...";
+
+    const payload = {
+        message: baseMsg,
+        pack_id: document.getElementById("pack-select").value,
+        audience: document.getElementById("preset-select").value,
+        interventions: [invA, invB],
+        n_runs: 20,
+        n_people: 40,
+        demo_mode: currentRuntimeMode === "demo",
+        use_llm: currentRuntimeMode === "live",
+    };
+
+    dismissErrorBanner();
+
+    // 1. Demo Mode: Instant precomputed comparison
+    if (currentRuntimeMode === "demo") {
+        if (precomputedBundle && precomputedBundle.compare_demos) {
+            const demos = precomputedBundle.compare_demos;
+            let match = null;
+            for (const key in demos) {
+                if (demos[key].pack_id === payload.pack_id) {
+                    match = demos[key];
+                    break;
+                }
+            }
+            if (!match) match = Object.values(demos)[0];
+            if (match) {
+                setTimeout(() => {
+                    renderComparisonResults(match);
+                    btn.disabled = false;
+                    btnText.textContent = "Run 20x Monte Carlo Comparison";
+                }, 100);
+                return;
+            }
+        }
+        payload.demo_mode = true;
+    }
+
+    // 2. Live Mode (or backend request)
+    try {
+        const resp = await fetch(`${API_BASE}/compare`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+        });
+
+        if (!resp.ok) {
+            const err = await resp.json();
+            throw new Error(err.detail || "Comparison failed.");
+        }
+
+        const data = await resp.json();
+        renderComparisonResults(data);
+
+    } catch (e) {
+        showErrorBanner(
+            "Comparison Evaluation Failed",
+            `Monte Carlo comparison could not complete (${e.message}). You can retry or switch to offline Demo mode.`,
+            runComparison
+        );
+    } finally {
+        btn.disabled = false;
+        btnText.textContent = "Run 20x Monte Carlo Comparison";
+    }
+}
+
+function renderComparisonResults(data) {
+    const banner = document.getElementById("compare-banner");
+    const winnerH3 = document.getElementById("compare-winner-banner");
+    const summaryP = document.getElementById("compare-summary-banner");
+
+    const winner = data.winner;
+    const relDiff = data.relative_difference_percent;
+
+    if (data.valence === "harmful") {
+        winnerH3.textContent = `${winner} reduced victims by ${relDiff}%`;
+        summaryP.textContent = `${winner} demonstrated superior friction and cognitive verification under identical audience topology.`;
+    } else {
+        winnerH3.textContent = `${winner} increased conversion by ${relDiff}%`;
+        summaryP.textContent = `${winner} achieved stronger reach and call-to-action conversion across 20 randomized seeds.`;
+    }
+
+    banner.classList.add("visible");
+
+    // Stats A
+    const statsA = data.candidate_a_stats?.acts || {};
+    document.getElementById("cand-a-acts").textContent = `Acts: ${statsA.mean} ± ${statsA.std} (median ${statsA.p50})`;
+    document.getElementById("cand-a-p-range").textContent = `${statsA.p10} — ${statsA.p90}`;
+    const barAPct = Math.min(100, (statsA.mean / 25) * 100);
+    document.getElementById("cand-a-bar").style.width = `${barAPct}%`;
+
+    // Stats B
+    const statsB = data.candidate_b_stats?.acts || {};
+    document.getElementById("cand-b-acts").textContent = `Acts: ${statsB.mean} ± ${statsB.std} (median ${statsB.p50})`;
+    document.getElementById("cand-b-p-range").textContent = `${statsB.p10} — ${statsB.p90}`;
+    const barBPct = Math.min(100, (statsB.mean / 25) * 100);
+    document.getElementById("cand-b-bar").style.width = `${barBPct}%`;
+
+    document.getElementById("compare-results-box").style.display = "grid";
+}
+
+// --------------------------------------------------------------------------
+// Utility Formatting
+// --------------------------------------------------------------------------
+
+function formatTitle(str) {
+    if (!str) return "";
+    return str
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, l => l.toUpperCase());
+}
+
+</script>
+
+</body>
+</html>

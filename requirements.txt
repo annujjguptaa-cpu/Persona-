@@ -1,0 +1,7 @@
+fastapi
+uvicorn
+networkx
+requests
+pydantic>=2
+numpy
+pytest
